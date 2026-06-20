@@ -51,3 +51,18 @@ test("normalizes only conversation URLs", () => {
   assert.equal(normalizeConversationUrl("/c/abc", "https://chatgpt.com"), "https://chatgpt.com/c/abc");
   assert.equal(normalizeConversationUrl("/settings", "https://chatgpt.com"), null);
 });
+
+test("extracts project conversation links when they are visible", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("/projects/betterdim", "BetterDim"),
+      anchor("/c/project-1", "Set app name"),
+      anchor("/c/project-2", "Free Version Features")
+    ],
+    "id:user-1",
+    456,
+    "https://chatgpt.com"
+  );
+
+  assert.deepEqual(records.map((record) => record.title), ["Set app name", "Free Version Features"]);
+});

@@ -1,15 +1,19 @@
 (async () => {
-  const [{ searchConversations }, extractModule, accountModule] = await Promise.all([
+  const CONVERSATION_LIST_IDLE_TIMEOUT_MS = 25000;
+  const CHAT_STALL_RECOVERY_MS = 8000;
+  const SCROLL_SETTLE_MS = 1100;
+  const SIDEBAR_SCROLL_RATIO = 0.55;
+
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
-    import(chrome.runtime.getURL("src/shared/account.js"))
+    import(chrome.runtime.getURL("src/shared/account.js")),
+    import(chrome.runtime.getURL("src/shared/syncIntegrity.js"))
   ]);
 
-  const {
-    extractConversationRecordsFromDocument,
-    hasConversationLinks
-  } = extractModule;
+  const { extractConversationRecordsFromDocument } = extractModule;
   const { detectAccountIdentity } = accountModule;
+  const { isSuspiciouslySmallSync } = syncIntegrityModule;
 
   const state = {
     accountId: null,
@@ -175,11 +179,6 @@
       status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
       return;
     }
-    if (!hasConversationLinks(document)) {
-      status.textContent = "Open the ChatGPT sidebar, then try sync again.";
-      return;
-    }
-
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
       status.textContent = "Open the ChatGPT sidebar, then try sync again.";
@@ -197,25 +196,17 @@
       syncOverlay.hidden = false;
       scrollContainer.scrollTop = 0;
       await sleep(500);
-      let quietPasses = 0;
+      rememberVisibleRecords(foundByUrl, state.accountId, syncedAt);
 
-      while (quietPasses < 4) {
-        if (cancelled) throw new Error("Sync canceled.");
-        const before = foundByUrl.size;
-        const visibleRecords = extractConversationRecordsFromDocument(document, state.accountId, syncedAt, location.origin);
-        for (const record of visibleRecords) {
-          const existing = foundByUrl.get(record.url);
-          foundByUrl.set(record.url, existing ? { ...existing, title: record.title, syncedAt } : { ...record, order: foundByUrl.size });
-        }
+      await scanConversationList(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
 
-        syncDetail.textContent = `Finding conversations... ${foundByUrl.size} indexed.`;
-        quietPasses = foundByUrl.size === before ? quietPasses + 1 : 0;
-        scrollContainer.scrollTop += Math.max(240, Math.floor(scrollContainer.clientHeight * 0.85));
-        await sleep(650);
-      }
+      await scanProjectSections(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
 
       const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
       if (records.length === 0) throw new Error("Sync could not find sidebar conversations.");
+      if (isSuspiciouslySmallSync(state.records.length, records.length)) {
+        throw new Error(`Sync found only ${records.length} conversations, but the current index has ${state.records.length}.`);
+      }
       await sendMessage({ type: "records:replace", accountId: state.accountId, records });
       state.records = records;
       status.textContent = `Synced ${records.length} conversations.`;
@@ -295,6 +286,207 @@
     }
 
     return candidates.find((element) => element.scrollHeight > element.clientHeight + 20) || null;
+  }
+
+  function rememberVisibleRecords(foundByUrl, accountId, syncedAt) {
+    const visibleRecords = extractConversationRecordsFromDocument(document, accountId, syncedAt, location.origin);
+    for (const record of visibleRecords) {
+      const existing = foundByUrl.get(record.url);
+      foundByUrl.set(record.url, existing ? { ...existing, title: record.title, syncedAt } : { ...record, order: foundByUrl.size });
+    }
+  }
+
+  async function scanConversationList(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
+    scrollToSection(scrollContainer, "chats");
+    await sleep(SCROLL_SETTLE_MS);
+
+    let lastNewConversationAt = Date.now();
+    let lastRecoveryAt = 0;
+
+    while (Date.now() - lastNewConversationAt < CONVERSATION_LIST_IDLE_TIMEOUT_MS) {
+      if (isCancelled()) throw new Error("Sync canceled.");
+
+      const beforeRecords = foundByUrl.size;
+      await expandShowMoreControls(scrollContainer);
+      rememberVisibleRecords(foundByUrl, accountId, syncedAt);
+      if (foundByUrl.size > beforeRecords) {
+        lastNewConversationAt = Date.now();
+        lastRecoveryAt = 0;
+      }
+
+      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
+      syncDetail.textContent = `Finding conversations... ${foundByUrl.size} indexed. ${idleSeconds}/25s idle`;
+
+      if (Date.now() - lastNewConversationAt >= CHAT_STALL_RECOVERY_MS && Date.now() - lastRecoveryAt >= CHAT_STALL_RECOVERY_MS) {
+        lastRecoveryAt = Date.now();
+        await recoverStalledConversationScroll(scrollContainer, isCancelled);
+        continue;
+      }
+
+      scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
+      await sleep(SCROLL_SETTLE_MS);
+    }
+  }
+
+  async function expandShowMoreControls(scrollContainer) {
+    const controls = Array.from(scrollContainer.querySelectorAll("button, [role='button'], summary"));
+    let expandedCount = 0;
+
+    for (const control of controls) {
+      if (!isShowMoreControl(control)) continue;
+      control.click();
+      expandedCount += 1;
+      await sleep(120);
+    }
+
+    return expandedCount;
+  }
+
+  async function scanProjectSections(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
+    const visitedProjects = new Set();
+    scrollContainer.scrollTop = 0;
+    await sleep(300);
+
+    let quietPasses = 0;
+    while (quietPasses < 4) {
+      if (isCancelled()) throw new Error("Sync canceled.");
+      const beforeRecords = foundByUrl.size;
+      const clickedProjects = await clickVisibleProjectControls(scrollContainer, visitedProjects);
+      rememberVisibleRecords(foundByUrl, accountId, syncedAt);
+
+      syncDetail.textContent = `Checking projects... ${foundByUrl.size} indexed.`;
+      quietPasses = clickedProjects === 0 && foundByUrl.size === beforeRecords ? quietPasses + 1 : 0;
+      scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
+      await sleep(SCROLL_SETTLE_MS);
+    }
+  }
+
+  function getSidebarScrollStep(scrollContainer) {
+    return Math.max(160, Math.floor(scrollContainer.clientHeight * SIDEBAR_SCROLL_RATIO));
+  }
+
+  async function recoverStalledConversationScroll(scrollContainer, isCancelled) {
+    syncDetail.textContent = "Finding conversations... nudging sidebar to load more.";
+    const scrollStep = getSidebarScrollStep(scrollContainer);
+
+    scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - Math.floor(scrollStep * 0.8));
+    await sleep(SCROLL_SETTLE_MS);
+    if (isCancelled()) throw new Error("Sync canceled.");
+
+    scrollContainer.scrollTop += scrollStep;
+    await sleep(SCROLL_SETTLE_MS);
+    if (isCancelled()) throw new Error("Sync canceled.");
+
+    scrollContainer.scrollTop += Math.floor(scrollStep * 0.35);
+    await sleep(SCROLL_SETTLE_MS);
+  }
+
+  function scrollToSection(scrollContainer, sectionName) {
+    const heading = findVisibleSectionHeading(scrollContainer, [sectionName]);
+    if (!heading) return false;
+
+    const headingTop = heading.getBoundingClientRect().top;
+    const containerTop = scrollContainer.getBoundingClientRect().top;
+    scrollContainer.scrollTop += headingTop - containerTop;
+    return true;
+  }
+
+  async function clickVisibleProjectControls(scrollContainer, visitedProjects) {
+    const controls = Array.from(scrollContainer.querySelectorAll("a[href], button, [role='button']"));
+    let clicked = 0;
+
+    for (const control of controls) {
+      if (!isProjectControl(control, scrollContainer)) continue;
+      const key = control.getAttribute("href") || compactText(control.textContent);
+      if (!key || visitedProjects.has(key)) continue;
+      visitedProjects.add(key);
+      control.click();
+      clicked += 1;
+      await sleep(450);
+    }
+
+    return clicked;
+  }
+
+  function isShowMoreControl(control) {
+    if (!control || control.closest("#cgcs-root")) return false;
+    if (control.closest("a[href*='/c/']")) return false;
+    if (!isVisible(control)) return false;
+
+    const text = compactText(control.textContent);
+    const label = compactText(control.getAttribute("aria-label"));
+    const isShowMore = text === "show more" || label === "show more";
+    const opensMenu = control.getAttribute("aria-haspopup") === "menu";
+    const menuLike = /^(more|options|edit|delete|share)$/i.test(text || label);
+
+    return isShowMore && !opensMenu && !menuLike;
+  }
+
+  function isProjectControl(control, scrollContainer) {
+    if (!control || control.closest("#cgcs-root")) return false;
+    if (!isVisible(control)) return false;
+    if (control.closest("a[href*='/c/']")) return false;
+
+    const text = compactText(control.textContent);
+    const label = compactText(control.getAttribute("aria-label"));
+    const href = control.getAttribute("href") || "";
+    const opensMenu = control.getAttribute("aria-haspopup") === "menu";
+    const blocked = /^(|projects|chats|pinned|show more|more|options|edit|delete|share)$/i.test(text || label);
+    const sidebarAction = /^(new chat|search chats|apps)$/i.test(text || label);
+
+    if (opensMenu || blocked || sidebarAction) return false;
+    if (href && !isProjectHref(href)) return false;
+    if (!isInsideProjectsArea(control, scrollContainer) && !isInsidePinnedArea(control, scrollContainer)) return false;
+
+    const rect = control.getBoundingClientRect();
+    return rect.width >= 48 && rect.height >= 20;
+  }
+
+  function isInsideProjectsArea(element, scrollContainer) {
+    return isInsideSectionArea(element, scrollContainer, ["projects"], ["chats"]);
+  }
+
+  function isInsidePinnedArea(element, scrollContainer) {
+    return isInsideSectionArea(element, scrollContainer, ["pinned"], ["projects", "chats"]);
+  }
+
+  function isInsideSectionArea(element, scrollContainer, startSections, endSections) {
+    const elementTop = element.getBoundingClientRect().top;
+    const labels = getVisibleSectionLabels(scrollContainer);
+    const sectionHeadings = labels.filter((label) => startSections.includes(label.text) && label.top <= elementTop);
+    if (sectionHeadings.length === 0) return false;
+
+    const latestSectionTop = Math.max(...sectionHeadings.map((label) => label.top));
+    const nextEndHeading = labels.find((label) => endSections.includes(label.text) && label.top > latestSectionTop);
+    return !nextEndHeading || elementTop < nextEndHeading.top;
+  }
+
+  function findVisibleSectionHeading(scrollContainer, sectionNames) {
+    return Array.from(scrollContainer.querySelectorAll("div, span, h2, h3, p"))
+      .filter(isVisible)
+      .find((node) => sectionNames.includes(compactText(node.textContent)));
+  }
+
+  function getVisibleSectionLabels(scrollContainer) {
+    return Array.from(scrollContainer.querySelectorAll("div, span, h2, h3, p"))
+      .filter(isVisible)
+      .map((node) => ({
+        text: compactText(node.textContent),
+        top: node.getBoundingClientRect().top
+      }));
+  }
+
+  function isProjectHref(href) {
+    return /project|\/g\//i.test(href);
+  }
+
+  function compactText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function isVisible(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   }
 
   function sendMessage(message) {

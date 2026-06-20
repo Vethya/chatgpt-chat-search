@@ -7,7 +7,9 @@ Use this after loading the repository as an unpacked Chromium extension.
 3. If the account cannot be detected, open the ChatGPT account menu and try again.
 4. Run Sync with the sidebar visible.
 5. Confirm the page is blurred, progress shows a phase plus count, and Cancel leaves the previous index unchanged.
-6. Search for a remembered title with a partial or misspelled query.
-7. Use arrow keys and Enter to open a result in the current tab.
-8. Rename or delete a Conversation in ChatGPT, run Sync again, and confirm the index updates.
-9. Export the index, clear it, import the export, and confirm records return without duplicates.
+6. Confirm Conversations nested under Projects are included after Sync.
+7. Confirm Sync does not replace a large existing index if the discovered count is unexpectedly tiny.
+8. Search for a remembered title with a partial or misspelled query.
+9. Use arrow keys and Enter to open a result in the current tab.
+10. Rename or delete a Conversation in ChatGPT, run Sync again, and confirm the index updates.
+11. Export the index, clear it, import the export, and confirm records return without duplicates.

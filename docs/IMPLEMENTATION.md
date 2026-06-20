@@ -8,6 +8,7 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
 
 - In-page modal Search Surface on `https://chatgpt.com/*`
 - Manual Conversation Sync from the visible ChatGPT sidebar
+- Project Conversation discovery from visible sidebar project sections and explicit "Show more" controls
 - Full resync that rebuilds the current Account Index only after successful completion
 - URL-based Conversation identity with title, account identity, sidebar order, and sync time
 - IndexedDB Conversation Database with explicit schema versioning
@@ -16,6 +17,7 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
 - Sync progress overlay that blurs/blocks the page and shows phase plus discovered count
 - Cancelable sync that discards partial results
 - Failed sync that preserves the previous Account Index
+- Sync integrity guard that refuses to overwrite a large index with a suspiciously smaller result
 - Account-separated indexes using internal account id when available or hashed email fallback
 - Index reset, export, and merge-by-URL import
 - Minimal extension popup with status and a route to ChatGPT
