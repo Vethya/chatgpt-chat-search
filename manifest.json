@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "ChatGPT Conversation Search",
+  "version": "0.1.0",
+  "description": "Fast local title search for ChatGPT conversations.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://chatgpt.com/*"],
+  "background": {
+    "service_worker": "src/serviceWorker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "ChatGPT Conversation Search",
+    "default_popup": "src/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["src/contentScript.js"],
+      "css": ["src/contentStyles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/shared/*.js"],
+      "matches": ["https://chatgpt.com/*"]
+    }
+  ],
+  "commands": {
+    "open-search": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Open ChatGPT conversation search"
+    }
+  }
+}

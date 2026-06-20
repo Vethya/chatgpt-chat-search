@@ -1,0 +1,145 @@
+#cgcs-root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cgcs-entry {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2147483000;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+}
+
+.cgcs-modal-backdrop,
+.cgcs-sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(6px);
+}
+
+.cgcs-modal-backdrop[hidden],
+.cgcs-sync-overlay[hidden] {
+  display: none;
+}
+
+.cgcs-modal {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 14px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.cgcs-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.cgcs-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid rgba(127, 127, 127, 0.32);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.cgcs-small,
+.cgcs-cancel {
+  border: 1px solid rgba(127, 127, 127, 0.32);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cgcs-status {
+  min-height: 20px;
+  color: color-mix(in srgb, CanvasText 72%, transparent);
+  font-size: 13px;
+}
+
+.cgcs-results {
+  display: grid;
+  gap: 4px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cgcs-results button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cgcs-results .is-selected button,
+.cgcs-results button:hover {
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cgcs-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cgcs-meta {
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  font-size: 12px;
+}
+
+.cgcs-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cgcs-sync-card {
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 16px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.cgcs-sync-title,
+.cgcs-sync-detail {
+  display: block;
+  margin: 0 0 12px;
+}
