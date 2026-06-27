@@ -8,6 +8,8 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
 
 - In-page modal Search Surface on `https://chatgpt.com/*`
 - Manual Conversation Sync from the visible ChatGPT sidebar
+- Quick recent Conversation Sync that stops once it reaches an already-indexed Conversation
+- Automatic indexing for the current Conversation after ChatGPT assigns it a stable `/c/...` URL and title
 - Project Conversation discovery from visible sidebar project sections and explicit "Show more" controls
 - Full resync that rebuilds the current Account Index only after successful completion
 - URL-based Conversation identity with title, account identity, sidebar order, and sync time
@@ -20,6 +22,7 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
 - Sync integrity guard that refuses to overwrite a large index with a suspiciously smaller result
 - Account-separated indexes using internal account id when available or hashed email fallback
 - Index reset, export, and merge-by-URL import
+- Conversation extraction rejects generic navigation/accessibility links before storing records
 - Minimal extension popup with status and a route to ChatGPT
 
 ## Architecture
@@ -29,6 +32,7 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
   - detects sidebar availability
   - extracts visible Conversation titles and links from the ChatGPT DOM
   - scrolls the sidebar during Conversation Sync
+  - observes the current ChatGPT route to index newly created Conversations incrementally
   - builds the in-memory fuzzy search index from Stored Conversation Records
   - navigates the current tab on Result Selection
 

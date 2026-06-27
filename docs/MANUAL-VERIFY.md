@@ -11,5 +11,8 @@ Use this after loading the repository as an unpacked Chromium extension.
 7. Confirm Sync does not replace a large existing index if the discovered count is unexpectedly tiny.
 8. Search for a remembered title with a partial or misspelled query.
 9. Use arrow keys and Enter to open a result in the current tab.
-10. Rename or delete a Conversation in ChatGPT, run Sync again, and confirm the index updates.
-11. Export the index, clear it, import the export, and confirm records return without duplicates.
+10. Start a new ChatGPT Conversation, send a message, wait for ChatGPT to assign a title, and confirm the title appears in extension search without full Sync.
+11. Create or expose several recent Conversations, run Quick, and confirm it stops after reaching an already-indexed Conversation.
+12. Confirm generic navigation labels such as "Skip to main content" are not added as Conversation titles.
+13. Rename or delete a Conversation in ChatGPT, run Sync again, and confirm the index updates.
+14. Export the index, clear it, import the export, and confirm records return without duplicates.

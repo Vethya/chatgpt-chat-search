@@ -1,4 +1,10 @@
-import { createIndexExport, mergeRecordsByUrl, parseIndexExport, sanitizeRecord } from "./shared/importExport.js";
+import {
+  createIndexExport,
+  mergeRecentRecords,
+  mergeRecordsByUrl,
+  parseIndexExport,
+  sanitizeRecord
+} from "./shared/importExport.js";
 
 const DB_NAME = "chatgpt-conversation-search";
 const DB_VERSION = 1;
@@ -25,6 +31,8 @@ async function handleMessage(message) {
       return listRecords(message.accountId);
     case "records:replace":
       return replaceAccountRecords(message.accountId, message.records || []);
+    case "records:upsert":
+      return upsertAccountRecords(message.accountId, message.records || []);
     case "records:reset":
       return resetAccountRecords(message.accountId);
     case "records:export":
@@ -74,6 +82,17 @@ async function replaceAccountRecords(accountId, records) {
     for (const record of cleanRecords) store.put(record);
   });
   return { count: cleanRecords.length };
+}
+
+async function upsertAccountRecords(accountId, records) {
+  requireAccountId(accountId);
+  const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
+  if (cleanRecords.length === 0) return { count: (await listRecords(accountId)).length, upserted: 0 };
+
+  const existing = await listRecords(accountId);
+  const merged = mergeRecentRecords(existing, cleanRecords);
+  await replaceAccountRecords(accountId, merged);
+  return { count: merged.length, upserted: cleanRecords.length };
 }
 
 async function resetAccountRecords(accountId) {

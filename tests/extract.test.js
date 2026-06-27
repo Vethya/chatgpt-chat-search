@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   extractConversationRecordsFromAnchors,
+  extractConversationRecordsFromDocument,
+  hasConversationLinks,
   normalizeConversationUrl
 } from "../src/shared/extract.js";
 
@@ -12,6 +14,21 @@ function anchor(href, text, attrs = {}) {
     getAttribute(name) {
       if (name === "href") return href;
       return attrs[name] || null;
+    },
+    closest() {
+      return null;
+    },
+    getBoundingClientRect() {
+      return attrs.hidden
+        ? { width: 0, height: 0 }
+        : { width: 120, height: 24 };
+    },
+    ownerDocument: {
+      defaultView: {
+        getComputedStyle() {
+          return { display: "block", visibility: "visible" };
+        }
+      }
     }
   };
 }
@@ -50,6 +67,8 @@ test("extracts unique conversation title records from anchors", () => {
 test("normalizes only conversation URLs", () => {
   assert.equal(normalizeConversationUrl("/c/abc", "https://chatgpt.com"), "https://chatgpt.com/c/abc");
   assert.equal(normalizeConversationUrl("/settings", "https://chatgpt.com"), null);
+  assert.equal(normalizeConversationUrl("http://[", "https://chatgpt.com"), null);
+  assert.equal(normalizeConversationUrl("https://chatgpt.com/c/abc/share", "https://chatgpt.com"), "https://chatgpt.com/c/abc");
 });
 
 test("extracts project conversation links when they are visible", () => {
@@ -65,4 +84,97 @@ test("extracts project conversation links when they are visible", () => {
   );
 
   assert.deepEqual(records.map((record) => record.title), ["Set app name", "Free Version Features"]);
+});
+
+test("skips generic accessibility links before the real conversation title", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("/c/abc-123", "Skip to main content"),
+      anchor("/c/abc-123", "Actual chat title")
+    ],
+    "id:user-1",
+    789,
+    "https://chatgpt.com"
+  );
+
+  assert.deepEqual(records.map((record) => record.title), ["Actual chat title"]);
+});
+
+test("can require visible conversation anchors", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("/c/hidden", "Hidden chat", { hidden: true }),
+      anchor("/c/visible", "Visible chat")
+    ],
+    "id:user-1",
+    789,
+    "https://chatgpt.com",
+    { requireVisible: true }
+  );
+
+  assert.deepEqual(records.map((record) => record.title), ["Visible chat"]);
+});
+
+test("prefers accessible titles and collapses whitespace", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("/c/a11y", " Visible\ntext ", {
+        "aria-label": "  Better   accessible title  ",
+        title: "Title attribute"
+      })
+    ],
+    "id:user-1",
+    789,
+    "https://chatgpt.com"
+  );
+
+  assert.equal(records[0].title, "Better accessible title");
+});
+
+test("filters non-conversation sidebar labels", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("/c/new", "New Chat"),
+      anchor("/c/chatgpt", "ChatGPT"),
+      anchor("/c/explore", "Explore GPTs"),
+      anchor("/c/real", "Real conversation")
+    ],
+    "id:user-1",
+    111,
+    "https://chatgpt.com"
+  );
+
+  assert.deepEqual(records.map((record) => record.title), ["Real conversation"]);
+});
+
+test("extracts records from document-like objects", () => {
+  const documentRef = {
+    querySelectorAll(selector) {
+      assert.equal(selector, "a[href]");
+      return [anchor("/c/doc-1", "From document")];
+    }
+  };
+
+  const records = extractConversationRecordsFromDocument(documentRef, "id:user-1", 222, "https://chatgpt.com");
+  assert.equal(records[0].url, "https://chatgpt.com/c/doc-1");
+});
+
+test("detects whether a document has conversation links", () => {
+  const previousLocation = globalThis.location;
+  globalThis.location = { origin: "https://chatgpt.com" };
+
+  try {
+    assert.equal(hasConversationLinks({
+      querySelectorAll() {
+        return [anchor("/settings", "Settings"), anchor("/c/has-link", "Has link")];
+      }
+    }), true);
+    assert.equal(hasConversationLinks({
+      querySelectorAll() {
+        return [anchor("/settings", "Settings")];
+      }
+    }), false);
+  } finally {
+    globalThis.location = previousLocation;
+  }
 });

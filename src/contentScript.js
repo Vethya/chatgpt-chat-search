@@ -1,19 +1,29 @@
 (async () => {
   const CONVERSATION_LIST_IDLE_TIMEOUT_MS = 25000;
   const CHAT_STALL_RECOVERY_MS = 8000;
+  const RECENT_LIST_IDLE_TIMEOUT_MS = 5000;
   const SCROLL_SETTLE_MS = 1100;
   const SIDEBAR_SCROLL_RATIO = 0.55;
+  const AUTO_INDEX_DEBOUNCE_MS = 1200;
+  const AUTO_INDEX_POLL_MS = 2500;
 
-  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule] = await Promise.all([
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
     import(chrome.runtime.getURL("src/shared/account.js")),
-    import(chrome.runtime.getURL("src/shared/syncIntegrity.js"))
+    import(chrome.runtime.getURL("src/shared/syncIntegrity.js")),
+    import(chrome.runtime.getURL("src/shared/importExport.js"))
   ]);
 
-  const { extractConversationRecordsFromDocument } = extractModule;
+  const {
+    extractConversationAnchorTitle,
+    extractConversationRecordsFromDocument,
+    isNonConversationTitle,
+    normalizeConversationUrl
+  } = extractModule;
   const { detectAccountIdentity } = accountModule;
   const { isSuspiciouslySmallSync } = syncIntegrityModule;
+  const { mergeRecentRecords } = importExportModule;
 
   const state = {
     accountId: null,
@@ -21,7 +31,13 @@
     results: [],
     selectedIndex: 0,
     query: "",
-    syncCancel: null
+    syncCancel: null,
+    autoIndexTimer: null,
+    lastAutoIndexedKey: "",
+    currentConversationUrl: "",
+    conversationUrlChangedAt: 0,
+    lastDocumentTitle: "",
+    documentTitleChangedAt: 0
   };
 
   const root = document.createElement("div");
@@ -32,6 +48,7 @@
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
         <div class="cgcs-toolbar">
           <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
+          <button class="cgcs-small cgcs-quick-sync" type="button" title="Sync recent conversations">Quick</button>
           <button class="cgcs-small cgcs-sync" type="button">Sync</button>
         </div>
         <div class="cgcs-status"></div>
@@ -58,6 +75,7 @@
   const input = root.querySelector(".cgcs-input");
   const status = root.querySelector(".cgcs-status");
   const resultsList = root.querySelector(".cgcs-results");
+  const quickSyncButton = root.querySelector(".cgcs-quick-sync");
   const syncButton = root.querySelector(".cgcs-sync");
   const importButton = root.querySelector(".cgcs-import");
   const exportButton = root.querySelector(".cgcs-export");
@@ -67,6 +85,7 @@
   const cancelButton = root.querySelector(".cgcs-cancel");
 
   entryButton.addEventListener("click", openSearch);
+  quickSyncButton.addEventListener("click", runRecentConversationSync);
   syncButton.addEventListener("click", runConversationSync);
   importButton.addEventListener("click", importIndex);
   exportButton.addEventListener("click", exportIndex);
@@ -95,6 +114,8 @@
     if (message?.type === "ui:openSearch") openSearch();
   });
 
+  startAutomaticIndexing();
+
   async function openSearch() {
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
@@ -105,6 +126,112 @@
 
   function closeSearch() {
     modalBackdrop.hidden = true;
+  }
+
+  function startAutomaticIndexing() {
+    const observer = new MutationObserver(() => scheduleAutoIndexCurrentConversation());
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["href", "aria-label", "title"]
+    });
+
+    window.addEventListener("popstate", () => scheduleAutoIndexCurrentConversation(0));
+    window.addEventListener("hashchange", () => scheduleAutoIndexCurrentConversation(0));
+    window.setInterval(() => scheduleAutoIndexCurrentConversation(), AUTO_INDEX_POLL_MS);
+    scheduleAutoIndexCurrentConversation(0);
+  }
+
+  function scheduleAutoIndexCurrentConversation(delay = AUTO_INDEX_DEBOUNCE_MS) {
+    window.clearTimeout(state.autoIndexTimer);
+    state.autoIndexTimer = window.setTimeout(() => {
+      state.autoIndexTimer = null;
+      autoIndexCurrentConversation().catch(() => {});
+    }, delay);
+  }
+
+  async function autoIndexCurrentConversation() {
+    if (state.syncCancel) return;
+
+    const record = await buildCurrentConversationRecord();
+    if (!record) return;
+
+    const indexKey = `${record.accountId}|${record.url}|${record.title}`;
+    if (state.lastAutoIndexedKey === indexKey) return;
+
+    await sendMessage({ type: "records:upsert", accountId: record.accountId, records: [record] });
+    state.lastAutoIndexedKey = indexKey;
+
+    if (!state.accountId || state.accountId === record.accountId) {
+      state.accountId = record.accountId;
+      state.records = mergeRecentRecords(state.records, [record]);
+      if (!modalBackdrop.hidden) renderResults();
+    }
+  }
+
+  async function buildCurrentConversationRecord() {
+    const url = normalizeConversationUrl(location.href, location.origin);
+    if (!url) return null;
+    updateObservedConversationState(url);
+
+    const titleResult = findCurrentConversationTitle(url);
+    if (!titleResult) return null;
+    if (titleResult.source === "document" && state.documentTitleChangedAt < state.conversationUrlChangedAt) return null;
+
+    const accountId = await detectAccountIdentity(document);
+    if (!accountId) return null;
+
+    return {
+      accountId,
+      url,
+      title: titleResult.title,
+      order: 0,
+      syncedAt: Date.now()
+    };
+  }
+
+  function updateObservedConversationState(url) {
+    const now = Date.now();
+    if (state.currentConversationUrl !== url) {
+      state.currentConversationUrl = url;
+      state.conversationUrlChangedAt = now;
+      state.lastAutoIndexedKey = "";
+    }
+    if (state.lastDocumentTitle !== document.title) {
+      state.lastDocumentTitle = document.title;
+      state.documentTitleChangedAt = now;
+    }
+  }
+
+  function findCurrentConversationTitle(url) {
+    const currentAnchor = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
+      isUsableConversationAnchor(anchor) &&
+      normalizeConversationUrl(anchor.href || anchor.getAttribute("href"), location.origin) === url
+    );
+    const anchorTitle = cleanConversationTitle(extractElementTitle(currentAnchor));
+    if (anchorTitle) return { title: anchorTitle, source: "anchor" };
+
+    const documentTitle = cleanConversationTitle(document.title);
+    if (documentTitle) return { title: documentTitle, source: "document" };
+
+    return null;
+  }
+
+  function extractElementTitle(element) {
+    if (!element) return "";
+    return extractConversationAnchorTitle(element) || "";
+  }
+
+  function cleanConversationTitle(value) {
+    const title = String(value || "")
+      .replace(/\s+/g, " ")
+      .replace(/^ChatGPT\s*[-|]\s*/i, "")
+      .replace(/\s*[-|]\s*ChatGPT$/i, "")
+      .trim();
+    if (isNonConversationTitle(title)) return "";
+    return title;
   }
 
   async function refreshAccountAndRecords() {
@@ -140,14 +267,14 @@
       const item = document.createElement("li");
       item.className = index === state.selectedIndex ? "is-selected" : "";
       item.innerHTML = `
-        <button type="button">
+        <button class="cgcs-result-open" type="button">
           <span class="cgcs-title"></span>
           <span class="cgcs-meta"></span>
         </button>
       `;
       item.querySelector(".cgcs-title").textContent = result.record.title;
       item.querySelector(".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
-      item.querySelector("button").addEventListener("click", () => selectResult(index));
+      item.querySelector(".cgcs-result-open").addEventListener("click", () => selectResult(index));
       resultsList.append(item);
     }
   }
@@ -196,7 +323,7 @@
       syncOverlay.hidden = false;
       scrollContainer.scrollTop = 0;
       await sleep(500);
-      rememberVisibleRecords(foundByUrl, state.accountId, syncedAt);
+      rememberVisibleRecords(scrollContainer, foundByUrl, state.accountId, syncedAt);
 
       await scanConversationList(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
 
@@ -214,6 +341,64 @@
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
         ? "Sync canceled. Previous index unchanged."
+        : `${error.message} Previous index unchanged.`;
+    } finally {
+      syncOverlay.hidden = true;
+      state.syncCancel = null;
+    }
+  }
+
+  async function runRecentConversationSync() {
+    state.accountId = await detectAccountIdentity(document);
+    if (!state.accountId) {
+      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      return;
+    }
+    const scrollContainer = findSidebarScrollContainer();
+    if (!scrollContainer) {
+      status.textContent = "Open the ChatGPT sidebar, then try quick sync again.";
+      return;
+    }
+
+    state.records = await sendMessage({ type: "records:list", accountId: state.accountId });
+    const knownUrls = new Set(state.records.map((record) => record.url));
+    const syncedAt = Date.now();
+    const foundByUrl = new Map();
+    let cancelled = false;
+    state.syncCancel = () => {
+      cancelled = true;
+    };
+
+    try {
+      syncOverlay.hidden = false;
+      scrollContainer.scrollTop = 0;
+      await sleep(300);
+
+      const hitKnownRecord = await scanRecentConversationList(
+        scrollContainer,
+        foundByUrl,
+        knownUrls,
+        state.accountId,
+        syncedAt,
+        () => cancelled
+      );
+      const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
+
+      if (records.length === 0) {
+        status.textContent = hitKnownRecord
+          ? "No new recent conversations found."
+          : "No recent conversations found before quick sync stopped.";
+        renderResults();
+        return;
+      }
+
+      await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
+      state.records = mergeRecentRecords(state.records, records);
+      status.textContent = `Quick synced ${records.length} recent conversation${records.length === 1 ? "" : "s"}.`;
+      renderResults();
+    } catch (error) {
+      status.textContent = error.message === "Sync canceled."
+        ? "Quick sync canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
     } finally {
       syncOverlay.hidden = true;
@@ -269,7 +454,7 @@
 
   function findSidebarScrollContainer() {
     const conversationLink = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
-      anchor.href.includes("/c/")
+      isUsableConversationAnchor(anchor) && anchor.href.includes("/c/")
     );
     const candidates = [
       document.querySelector("nav"),
@@ -288,12 +473,26 @@
     return candidates.find((element) => element.scrollHeight > element.clientHeight + 20) || null;
   }
 
-  function rememberVisibleRecords(foundByUrl, accountId, syncedAt) {
-    const visibleRecords = extractConversationRecordsFromDocument(document, accountId, syncedAt, location.origin);
+  function rememberVisibleRecords(rootElement, foundByUrl, accountId, syncedAt) {
+    const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, location.origin, {
+      requireVisible: true
+    });
     for (const record of visibleRecords) {
       const existing = foundByUrl.get(record.url);
       foundByUrl.set(record.url, existing ? { ...existing, title: record.title, syncedAt } : { ...record, order: foundByUrl.size });
     }
+  }
+
+  function rememberVisibleRecordsUntilKnown(rootElement, foundByUrl, knownUrls, accountId, syncedAt) {
+    const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, location.origin, {
+      requireVisible: true
+    });
+    for (const record of visibleRecords) {
+      if (knownUrls.has(record.url)) return true;
+      const existing = foundByUrl.get(record.url);
+      foundByUrl.set(record.url, existing ? { ...existing, title: record.title, syncedAt } : { ...record, order: foundByUrl.size });
+    }
+    return false;
   }
 
   async function scanConversationList(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
@@ -308,7 +507,7 @@
 
       const beforeRecords = foundByUrl.size;
       await expandShowMoreControls(scrollContainer);
-      rememberVisibleRecords(foundByUrl, accountId, syncedAt);
+      rememberVisibleRecords(scrollContainer, foundByUrl, accountId, syncedAt);
       if (foundByUrl.size > beforeRecords) {
         lastNewConversationAt = Date.now();
         lastRecoveryAt = 0;
@@ -326,6 +525,37 @@
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
     }
+  }
+
+  async function scanRecentConversationList(scrollContainer, foundByUrl, knownUrls, accountId, syncedAt, isCancelled) {
+    scrollToSection(scrollContainer, "chats");
+    await sleep(SCROLL_SETTLE_MS);
+
+    let lastNewConversationAt = Date.now();
+
+    while (Date.now() - lastNewConversationAt < RECENT_LIST_IDLE_TIMEOUT_MS) {
+      if (isCancelled()) throw new Error("Sync canceled.");
+
+      const beforeRecords = foundByUrl.size;
+      await expandShowMoreControls(scrollContainer);
+      const hitKnownRecord = rememberVisibleRecordsUntilKnown(
+        scrollContainer,
+        foundByUrl,
+        knownUrls,
+        accountId,
+        syncedAt
+      );
+      if (hitKnownRecord) return true;
+      if (foundByUrl.size > beforeRecords) lastNewConversationAt = Date.now();
+
+      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
+      syncDetail.textContent = `Checking recent conversations... ${foundByUrl.size} new. ${idleSeconds}/5s idle`;
+
+      scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
+      await sleep(SCROLL_SETTLE_MS);
+    }
+
+    return false;
   }
 
   async function expandShowMoreControls(scrollContainer) {
@@ -352,7 +582,7 @@
       if (isCancelled()) throw new Error("Sync canceled.");
       const beforeRecords = foundByUrl.size;
       const clickedProjects = await clickVisibleProjectControls(scrollContainer, visitedProjects);
-      rememberVisibleRecords(foundByUrl, accountId, syncedAt);
+      rememberVisibleRecords(scrollContainer, foundByUrl, accountId, syncedAt);
 
       syncDetail.textContent = `Checking projects... ${foundByUrl.size} indexed.`;
       quietPasses = clickedProjects === 0 && foundByUrl.size === beforeRecords ? quietPasses + 1 : 0;
@@ -487,6 +717,13 @@
   function isVisible(element) {
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
+  }
+
+  function isUsableConversationAnchor(anchor) {
+    if (!anchor || anchor.closest("#cgcs-root")) return false;
+    if (!isVisible(anchor)) return false;
+    if (!normalizeConversationUrl(anchor.href || anchor.getAttribute("href"), location.origin)) return false;
+    return Boolean(extractConversationAnchorTitle(anchor));
   }
 
   function sendMessage(message) {

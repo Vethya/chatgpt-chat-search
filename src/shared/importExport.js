@@ -39,6 +39,17 @@ export function mergeRecordsByUrl(existingRecords, incomingRecords) {
   return [...byUrl.values()].sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
 }
 
+export function mergeRecentRecords(existingRecords, incomingRecords) {
+  const recent = dedupeRecordsByUrl(incomingRecords).sort(compareByOrder);
+  const recentUrls = new Set(recent.map((record) => record.url));
+  const older = existingRecords
+    .map((record) => sanitizeRecord(record))
+    .filter((record) => !recentUrls.has(record.url))
+    .sort(compareByOrder);
+
+  return [...recent, ...older].map((record, order) => ({ ...record, order }));
+}
+
 export function sanitizeRecord(record) {
   if (!record || !record.accountId || !record.url || !record.title) {
     throw new Error("Conversation record is missing required fields.");
@@ -55,4 +66,18 @@ export function sanitizeRecord(record) {
 function chooseNewerRecord(previous, incoming) {
   if (!previous) return incoming;
   return incoming.syncedAt >= previous.syncedAt ? incoming : previous;
+}
+
+function dedupeRecordsByUrl(records) {
+  const byUrl = new Map();
+  for (const record of records) {
+    const clean = sanitizeRecord(record);
+    const previous = byUrl.get(clean.url);
+    byUrl.set(clean.url, chooseNewerRecord(previous, clean));
+  }
+  return [...byUrl.values()];
+}
+
+function compareByOrder(left, right) {
+  return (left.order ?? 0) - (right.order ?? 0);
 }
