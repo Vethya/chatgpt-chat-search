@@ -6,6 +6,7 @@
   const SIDEBAR_SCROLL_RATIO = 0.55;
   const AUTO_INDEX_DEBOUNCE_MS = 1200;
   const AUTO_INDEX_POLL_MS = 2500;
+  const TOAST_STATUS_MS = 2000;
 
   const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
@@ -38,7 +39,8 @@
     currentConversationUrl: "",
     conversationUrlChangedAt: 0,
     lastDocumentTitle: "",
-    documentTitleChangedAt: 0
+    documentTitleChangedAt: 0,
+    toastTimer: null
   };
 
   const root = document.createElement("div");
@@ -68,6 +70,7 @@
         <button class="cgcs-cancel" type="button">Cancel</button>
       </div>
     </div>
+    <div class="cgcs-toast" role="status" hidden></div>
   `;
   document.documentElement.append(root);
 
@@ -75,6 +78,7 @@
   const modalBackdrop = root.querySelector(".cgcs-modal-backdrop");
   const input = root.querySelector(".cgcs-input");
   const status = root.querySelector(".cgcs-status");
+  const toast = root.querySelector(".cgcs-toast");
   const resultsList = root.querySelector(".cgcs-results");
   const quickSyncButton = root.querySelector(".cgcs-quick-sync");
   const syncButton = root.querySelector(".cgcs-sync");
@@ -317,9 +321,20 @@
       .filter((record) => record.url !== result.record.url)
       .map((record, order) => ({ ...record, order }));
     renderResults();
-    status.textContent = response.deleted
+    showToast(response.deleted
       ? `Removed "${result.record.title}" from the local index.`
-      : "That conversation was already absent from the local index.";
+      : "That conversation was already absent from the local index.");
+  }
+
+  function showToast(message) {
+    if (state.toastTimer) window.clearTimeout(state.toastTimer);
+    toast.textContent = message;
+    toast.hidden = false;
+    state.toastTimer = window.setTimeout(() => {
+      state.toastTimer = null;
+      toast.hidden = true;
+      toast.textContent = "";
+    }, TOAST_STATUS_MS);
   }
 
   async function runConversationSync() {

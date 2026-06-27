@@ -55,6 +55,31 @@ test("content script deletes a single local record", async (t) => {
   });
 });
 
+test("content script shows a temporary toast after delete", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [
+      { title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 },
+      { title: "Second conversation", url: "https://chatgpt.com/c/second", order: 1 }
+    ]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.clickResultDelete(0);
+
+  assert.equal(harness.element(".cgcs-status").textContent, "1 indexed conversations");
+  assert.equal(
+    harness.element(".cgcs-toast").textContent,
+    'Removed "First conversation" from the local index.'
+  );
+  assert.equal(harness.element(".cgcs-toast").hidden, false);
+
+  harness.runWindowTimeout(2000);
+
+  assert.equal(harness.element(".cgcs-status").textContent, "1 indexed conversations");
+  assert.equal(harness.element(".cgcs-toast").textContent, "");
+  assert.equal(harness.element(".cgcs-toast").hidden, true);
+});
+
 test("content script reports missing account identity", async (t) => {
   const harness = await loadContentScript(t, {
     accountElement: null,
@@ -79,6 +104,7 @@ async function loadContentScript(t, options = {}) {
   const previousConfirm = globalThis.confirm;
   const sentMessages = [];
   const messageListeners = [];
+  const windowTimeouts = [];
   const elements = createContentScriptElements();
   const documentRef = {
     title: "ChatGPT",
@@ -132,6 +158,12 @@ async function loadContentScript(t, options = {}) {
     },
     async clickResultDelete(index) {
       await elements.get(".cgcs-results").children[index].querySelector(".cgcs-delete").listeners.get("click")();
+    },
+    runWindowTimeout(delay) {
+      const timer = windowTimeouts.findLast((entry) => entry.delay === delay && !entry.cleared);
+      assert.ok(timer, `Expected an active window timeout with delay ${delay}.`);
+      timer.cleared = true;
+      timer.callback();
     }
   };
 
@@ -147,10 +179,15 @@ async function loadContentScript(t, options = {}) {
       }
     },
     addEventListener() {},
-    clearTimeout() {},
+    clearTimeout(id) {
+      const timer = windowTimeouts.find((entry) => entry.id === id);
+      if (timer) timer.cleared = true;
+    },
     setInterval() {},
-    setTimeout() {
-      return 1;
+    setTimeout(callback, delay) {
+      const timer = { id: windowTimeouts.length + 1, callback, delay, cleared: false };
+      windowTimeouts.push(timer);
+      return timer.id;
     }
   };
   globalThis.MutationObserver = class {
@@ -203,6 +240,7 @@ function createContentScriptElements() {
     [".cgcs-modal-backdrop", new FakeElement("div", { hidden: true })],
     [".cgcs-input", new FakeElement("input")],
     [".cgcs-status", new FakeElement("div")],
+    [".cgcs-toast", new FakeElement("div", { hidden: true })],
     [".cgcs-results", new FakeElement("ol")],
     [".cgcs-quick-sync", new FakeElement("button")],
     [".cgcs-sync", new FakeElement("button")],

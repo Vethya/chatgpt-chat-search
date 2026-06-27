@@ -148,6 +148,25 @@
   gap: 8px;
 }
 
+.cgcs-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483002;
+  max-width: min(360px, calc(100vw - 36px));
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, CanvasText 9%, Canvas);
+  color: CanvasText;
+  font-size: 13px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
+}
+
+.cgcs-toast[hidden] {
+  display: none;
+}
+
 .cgcs-sync-card {
   width: min(360px, calc(100vw - 32px));
   border: 1px solid rgba(127, 127, 127, 0.28);
