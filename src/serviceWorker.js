@@ -43,6 +43,8 @@ async function handleMessage(message) {
       return importRecords(message.exportData);
     case "status:get":
       return getStatus(message.accountId);
+    case "status:listAccounts":
+      return listAccountStatuses();
     default:
       throw new Error(`Unknown message type: ${message?.type}`);
   }
@@ -148,6 +150,31 @@ async function getStatus(accountId) {
     count: records.length,
     lastSyncedAt: records.reduce((latest, record) => Math.max(latest, record.syncedAt || 0), 0)
   };
+}
+
+async function listAccountStatuses() {
+  const db = await openDb();
+  const records = await runTransaction(db, "readonly", (store, resolve, reject) => {
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+  const byAccountId = new Map();
+
+  for (const record of records) {
+    const status = byAccountId.get(record.accountId) || {
+      accountId: record.accountId,
+      count: 0,
+      lastSyncedAt: 0
+    };
+    status.count += 1;
+    status.lastSyncedAt = Math.max(status.lastSyncedAt, record.syncedAt || 0);
+    byAccountId.set(record.accountId, status);
+  }
+
+  return [...byAccountId.values()].sort((left, right) =>
+    right.lastSyncedAt - left.lastSyncedAt || left.accountId.localeCompare(right.accountId)
+  );
 }
 
 async function deleteAccountRecords(db, accountId) {

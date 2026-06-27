@@ -101,6 +101,31 @@ test("exports, imports, and resets account records", async (t) => {
   assert.deepEqual(await worker.send({ type: "records:list", accountId: "id:source" }), []);
 });
 
+test("lists grouped account statuses", async (t) => {
+  const worker = await loadServiceWorker(t);
+
+  await worker.send({
+    type: "records:replace",
+    accountId: "id:first",
+    records: [
+      record({ accountId: "id:first", url: "https://chatgpt.com/c/1", title: "One", syncedAt: 10 }),
+      record({ accountId: "id:first", url: "https://chatgpt.com/c/2", title: "Two", syncedAt: 30 })
+    ]
+  });
+  await worker.send({
+    type: "records:replace",
+    accountId: "email-sha256:abcdef",
+    records: [
+      record({ accountId: "email-sha256:abcdef", url: "https://chatgpt.com/c/3", title: "Three", syncedAt: 20 })
+    ]
+  });
+
+  assert.deepEqual(await worker.send({ type: "status:listAccounts" }), [
+    { accountId: "id:first", count: 2, lastSyncedAt: 30 },
+    { accountId: "email-sha256:abcdef", count: 1, lastSyncedAt: 20 }
+  ]);
+});
+
 test("returns structured errors for invalid messages", async (t) => {
   const worker = await loadServiceWorker(t);
 
@@ -316,6 +341,15 @@ class FakeObjectStore {
 
   put(item) {
     this.db.records.set(JSON.stringify([item.accountId, item.url]), { ...item });
+  }
+
+  getAll() {
+    const request = {};
+    queueMicrotask(() => {
+      request.result = [...this.db.records.values()].map((item) => ({ ...item }));
+      request.onsuccess?.();
+    });
+    return request;
   }
 
   delete(primaryKey) {
