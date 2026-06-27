@@ -6,6 +6,7 @@
   "description": "Local Chromium extension for fast ChatGPT conversation title search.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check src/contentScript.js && node --check src/serviceWorker.js && node --check src/popup.js"
+    "check": "node --check src/contentScript.js && node --check src/serviceWorker.js && node --check src/popup.js",
+    "package": "./scripts/package-extension.sh"
   }
 }
