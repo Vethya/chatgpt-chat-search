@@ -49,6 +49,29 @@ test("upserts recent records and reports status", async (t) => {
   });
 });
 
+test("deletes one account record and reorders the rest", async (t) => {
+  const worker = await loadServiceWorker(t);
+
+  await worker.send({
+    type: "records:replace",
+    accountId: "id:user",
+    records: [
+      record({ url: "https://chatgpt.com/c/first", title: "First", order: 0 }),
+      record({ url: "https://chatgpt.com/c/second", title: "Second", order: 1 })
+    ]
+  });
+
+  assert.deepEqual(await worker.send({
+    type: "records:delete",
+    accountId: "id:user",
+    url: "https://chatgpt.com/c/first"
+  }), { count: 1, deleted: true });
+
+  const records = await worker.send({ type: "records:list", accountId: "id:user" });
+  assert.deepEqual(records.map((item) => item.title), ["Second"]);
+  assert.deepEqual(records.map((item) => item.order), [0]);
+});
+
 test("exports, imports, and resets account records", async (t) => {
   const worker = await loadServiceWorker(t);
 

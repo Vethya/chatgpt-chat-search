@@ -16,6 +16,7 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
 - IndexedDB Conversation Database with explicit schema versioning
 - Fuzzy title search with match quality first and sidebar order as recency tiebreaker
 - Keyboard-driven search: open, type, move through results, select
+- Single Conversation removal from the local index
 - Sync progress overlay that blurs/blocks the page and shows phase plus discovered count
 - Cancelable sync that discards partial results
 - Failed sync that preserves the previous Account Index
@@ -35,11 +36,12 @@ Build a Chromium-only unpacked extension that adds fast local search for ChatGPT
   - observes the current ChatGPT route to index newly created Conversations incrementally
   - builds the in-memory fuzzy search index from Stored Conversation Records
   - navigates the current tab on Result Selection
+  - removes individual Stored Conversation Records on user request
 
 - Service Worker:
   - owns IndexedDB access and migrations
   - stores Account Index records
-  - handles import/export/reset
+  - handles import/export/reset/delete
   - provides records to the Content Script
 
 ## Build Order

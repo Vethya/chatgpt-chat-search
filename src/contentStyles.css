@@ -90,7 +90,15 @@
   list-style: none;
 }
 
-.cgcs-results button {
+.cgcs-results li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.cgcs-result-open {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -105,9 +113,22 @@
   cursor: pointer;
 }
 
-.cgcs-results .is-selected button,
-.cgcs-results button:hover {
+.cgcs-results .is-selected .cgcs-result-open,
+.cgcs-result-open:hover,
+.cgcs-delete:hover {
   background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cgcs-delete {
+  min-width: 72px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 58%, transparent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .cgcs-title {

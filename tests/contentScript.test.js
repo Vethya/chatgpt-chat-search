@@ -36,6 +36,25 @@ test("content script filters results and navigates selected conversations", asyn
   assert.equal(harness.assignedUrl, "https://chatgpt.com/c/second");
 });
 
+test("content script deletes a single local record", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [
+      { title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 },
+      { title: "Second conversation", url: "https://chatgpt.com/c/second", order: 1 }
+    ]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.clickResultDelete(0);
+
+  assert.deepEqual(harness.renderedTitles(), ["Second conversation"]);
+  assert.deepEqual(harness.sentMessages.at(-1), {
+    type: "records:delete",
+    accountId: "id:acct_content",
+    url: "https://chatgpt.com/c/first"
+  });
+});
+
 test("content script reports missing account identity", async (t) => {
   const harness = await loadContentScript(t, {
     accountElement: null,
@@ -57,6 +76,7 @@ async function loadContentScript(t, options = {}) {
   const previousWindow = globalThis.window;
   const previousLocation = globalThis.location;
   const previousMutationObserver = globalThis.MutationObserver;
+  const previousConfirm = globalThis.confirm;
   const sentMessages = [];
   const messageListeners = [];
   const elements = createContentScriptElements();
@@ -110,6 +130,9 @@ async function loadContentScript(t, options = {}) {
         item.querySelector(".cgcs-title").textContent
       );
     },
+    async clickResultDelete(index) {
+      await elements.get(".cgcs-results").children[index].querySelector(".cgcs-delete").listeners.get("click")();
+    }
   };
 
   globalThis.document = documentRef;
@@ -133,6 +156,7 @@ async function loadContentScript(t, options = {}) {
   globalThis.MutationObserver = class {
     observe() {}
   };
+  globalThis.confirm = () => true;
   globalThis.chrome = {
     runtime: {
       lastError: null,
@@ -165,6 +189,7 @@ async function loadContentScript(t, options = {}) {
     globalThis.window = previousWindow;
     globalThis.location = previousLocation;
     globalThis.MutationObserver = previousMutationObserver;
+    globalThis.confirm = previousConfirm;
   });
 
   await import(new URL(`../src/contentScript.js?content-script-test=${importCounter++}`, import.meta.url));
@@ -192,11 +217,13 @@ function createContentScriptElements() {
 
 function createResultItem() {
   const button = new FakeElement("button");
+  const deleteButton = new FakeElement("button");
   const title = new FakeElement("span");
   const meta = new FakeElement("span");
   return new FakeElement("li", {
     querySelector(selector) {
       if (selector === "button" || selector === ".cgcs-result-open") return button;
+      if (selector === ".cgcs-delete") return deleteButton;
       if (selector === ".cgcs-title") return title;
       if (selector === ".cgcs-meta") return meta;
       return null;

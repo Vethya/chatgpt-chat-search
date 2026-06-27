@@ -33,6 +33,8 @@ async function handleMessage(message) {
       return replaceAccountRecords(message.accountId, message.records || []);
     case "records:upsert":
       return upsertAccountRecords(message.accountId, message.records || []);
+    case "records:delete":
+      return deleteAccountRecord(message.accountId, message.url);
     case "records:reset":
       return resetAccountRecords(message.accountId);
     case "records:export":
@@ -93,6 +95,21 @@ async function upsertAccountRecords(accountId, records) {
   const merged = mergeRecentRecords(existing, cleanRecords);
   await replaceAccountRecords(accountId, merged);
   return { count: merged.length, upserted: cleanRecords.length };
+}
+
+async function deleteAccountRecord(accountId, url) {
+  requireAccountId(accountId);
+  if (!url) throw new Error("Missing conversation URL.");
+
+  const existing = await listRecords(accountId);
+  const remaining = existing
+    .filter((record) => record.url !== url)
+    .map((record, order) => ({ ...record, order }));
+
+  if (remaining.length === existing.length) return { count: existing.length, deleted: false };
+
+  await replaceAccountRecords(accountId, remaining);
+  return { count: remaining.length, deleted: true };
 }
 
 async function resetAccountRecords(accountId) {

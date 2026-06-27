@@ -271,10 +271,12 @@
           <span class="cgcs-title"></span>
           <span class="cgcs-meta"></span>
         </button>
+        <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">Remove</button>
       `;
       item.querySelector(".cgcs-title").textContent = result.record.title;
       item.querySelector(".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
       item.querySelector(".cgcs-result-open").addEventListener("click", () => selectResult(index));
+      item.querySelector(".cgcs-delete").addEventListener("click", () => deleteResult(index));
       resultsList.append(item);
     }
   }
@@ -298,6 +300,25 @@
     const result = state.results[index];
     if (!result) return;
     window.location.assign(result.record.url);
+  }
+
+  async function deleteResult(index) {
+    const result = state.results[index];
+    if (!result || !state.accountId) return;
+    if (!confirm(`Remove "${result.record.title}" from the local index?`)) return;
+
+    const response = await sendMessage({
+      type: "records:delete",
+      accountId: state.accountId,
+      url: result.record.url
+    });
+    state.records = state.records
+      .filter((record) => record.url !== result.record.url)
+      .map((record, order) => ({ ...record, order }));
+    renderResults();
+    status.textContent = response.deleted
+      ? `Removed "${result.record.title}" from the local index.`
+      : "That conversation was already absent from the local index.";
   }
 
   async function runConversationSync() {
