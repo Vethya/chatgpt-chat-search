@@ -8,12 +8,13 @@
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
 
-  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule] = await Promise.all([
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
     import(chrome.runtime.getURL("src/shared/account.js")),
     import(chrome.runtime.getURL("src/shared/syncIntegrity.js")),
-    import(chrome.runtime.getURL("src/shared/importExport.js"))
+    import(chrome.runtime.getURL("src/shared/importExport.js")),
+    import(chrome.runtime.getURL("src/shared/recentSync.js"))
   ]);
 
   const {
@@ -26,6 +27,7 @@
   const { detectAccountIdentity } = accountModule;
   const { isSuspiciouslySmallSync } = syncIntegrityModule;
   const { mergeRecentRecords } = importExportModule;
+  const { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } = recentSyncModule;
 
   const state = {
     accountId: null,
@@ -529,16 +531,19 @@
     }
   }
 
-  function rememberVisibleRecordsUntilKnown(rootElement, foundByUrl, knownUrls, accountId, syncedAt) {
+  function rememberVisibleRecentRecords(rootElement, foundByUrl, knownUrls, visitedUrls, accountId, syncedAt, consecutiveKnownCount) {
     const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, location.origin, {
       requireVisible: true
-    });
-    for (const record of visibleRecords) {
-      if (knownUrls.has(record.url)) return true;
-      const existing = foundByUrl.get(record.url);
-      foundByUrl.set(record.url, existing ? { ...existing, title: record.title, syncedAt } : { ...record, order: foundByUrl.size });
-    }
-    return false;
+    }).map((record) => ({ ...record, syncedAt }));
+
+    return rememberRecentVisibleRecords(
+      visibleRecords,
+      foundByUrl,
+      knownUrls,
+      visitedUrls,
+      consecutiveKnownCount,
+      RECENT_KNOWN_STOP_THRESHOLD
+    );
   }
 
   async function scanConversationList(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
@@ -578,24 +583,29 @@
     await sleep(SCROLL_SETTLE_MS);
 
     let lastNewConversationAt = Date.now();
+    let consecutiveKnownCount = 0;
+    const visitedUrls = new Set();
 
     while (Date.now() - lastNewConversationAt < RECENT_LIST_IDLE_TIMEOUT_MS) {
       if (isCancelled()) throw new Error("Sync canceled.");
 
       const beforeRecords = foundByUrl.size;
       await expandShowMoreControls(scrollContainer);
-      const hitKnownRecord = rememberVisibleRecordsUntilKnown(
+      const result = rememberVisibleRecentRecords(
         scrollContainer,
         foundByUrl,
         knownUrls,
+        visitedUrls,
         accountId,
-        syncedAt
+        syncedAt,
+        consecutiveKnownCount
       );
-      if (hitKnownRecord) return true;
+      consecutiveKnownCount = result.consecutiveKnownCount;
+      if (result.hitKnownLimit) return true;
       if (foundByUrl.size > beforeRecords) lastNewConversationAt = Date.now();
 
       const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
-      syncDetail.textContent = `Checking recent conversations... ${foundByUrl.size} new. ${idleSeconds}/5s idle`;
+      syncDetail.textContent = `Checking recent conversations... ${foundByUrl.size} new, ${consecutiveKnownCount}/${RECENT_KNOWN_STOP_THRESHOLD} known. ${idleSeconds}/5s idle`;
 
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
