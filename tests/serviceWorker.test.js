@@ -20,6 +20,33 @@ test("stores replacement records and lists them by order", async (t) => {
   assert.deepEqual(records.map((item) => item.accountId), ["id:user", "id:user"]);
 });
 
+test("failed replacement preserves previous account records", async (t) => {
+  const worker = await loadServiceWorker(t, { failPutTitle: "Broken" });
+
+  await worker.send({
+    type: "records:replace",
+    accountId: "id:user",
+    records: [
+      record({ url: "https://chatgpt.com/c/old", title: "Old", order: 0, syncedAt: 10 })
+    ]
+  });
+
+  assert.deepEqual(await worker.sendRaw({
+    type: "records:replace",
+    accountId: "id:user",
+    records: [
+      record({ url: "https://chatgpt.com/c/new", title: "New", order: 0, syncedAt: 20 }),
+      record({ url: "https://chatgpt.com/c/broken", title: "Broken", order: 1, syncedAt: 20 })
+    ]
+  }), {
+    ok: false,
+    error: "Simulated put failure."
+  });
+
+  const records = await worker.send({ type: "records:list", accountId: "id:user" });
+  assert.deepEqual(records.map((item) => item.title), ["Old"]);
+});
+
 test("upserts recent records and reports status", async (t) => {
   const worker = await loadServiceWorker(t);
 
@@ -165,7 +192,7 @@ async function loadServiceWorker(t, options = {}) {
   const messageListeners = [];
   const commandListeners = [];
   const sentTabMessages = [];
-  const fakeIndexedDb = createFakeIndexedDb();
+  const fakeIndexedDb = createFakeIndexedDb(options);
   const worker = {
     activeTabs: options.activeTabs || [],
     sentTabMessages,
@@ -241,7 +268,7 @@ function record(overrides) {
   };
 }
 
-function createFakeIndexedDb() {
+function createFakeIndexedDb(options = {}) {
   const databases = new Map();
 
   return {
@@ -251,7 +278,7 @@ function createFakeIndexedDb() {
         let db = databases.get(name);
         const isNew = !db;
         if (!db) {
-          db = new FakeDb();
+          db = new FakeDb(options);
           databases.set(name, db);
         }
         request.result = db;
@@ -264,7 +291,8 @@ function createFakeIndexedDb() {
 }
 
 class FakeDb {
-  constructor() {
+  constructor(options) {
+    this.options = options;
     this.records = new Map();
     this.objectStoreNames = {
       contains: (name) => name === "conversations" && this.hasStore
@@ -287,17 +315,31 @@ class FakeDb {
 class FakeTransaction {
   constructor(db) {
     this.db = db;
-    setTimeout(() => this.oncomplete?.(), 0);
+    this.snapshot = new Map(db.records);
+    this.error = null;
+    this.aborted = false;
+    setTimeout(() => {
+      if (!this.aborted) this.oncomplete?.();
+    }, 0);
   }
 
   objectStore() {
-    return new FakeObjectStore(this.db);
+    return new FakeObjectStore(this.db, this);
+  }
+
+  abort(error) {
+    if (this.aborted) return;
+    this.aborted = true;
+    this.error = error;
+    this.db.records = new Map(this.snapshot);
+    queueMicrotask(() => this.onabort?.());
   }
 }
 
 class FakeObjectStore {
-  constructor(db) {
+  constructor(db, transaction = null) {
     this.db = db;
+    this.transaction = transaction;
   }
 
   createIndex() {}
@@ -340,6 +382,10 @@ class FakeObjectStore {
   }
 
   put(item) {
+    if (this.db.options.failPutTitle === item.title) {
+      this.transaction?.abort(new Error("Simulated put failure."));
+      return;
+    }
     this.db.records.set(JSON.stringify([item.accountId, item.url]), { ...item });
   }
 
@@ -353,6 +399,7 @@ class FakeObjectStore {
   }
 
   delete(primaryKey) {
+    if (this.transaction?.aborted) return;
     this.db.records.delete(JSON.stringify(primaryKey));
   }
 }

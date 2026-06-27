@@ -81,9 +81,20 @@ async function replaceAccountRecords(accountId, records) {
   requireAccountId(accountId);
   const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
   const db = await openDb();
-  await deleteAccountRecords(db, accountId);
-  await runTransaction(db, "readwrite", (store) => {
-    for (const record of cleanRecords) store.put(record);
+  await runTransaction(db, "readwrite", (store, resolve, reject) => {
+    const index = store.index("accountId");
+    const request = index.openKeyCursor(IDBKeyRange.only(accountId));
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        store.delete(cursor.primaryKey);
+        cursor.continue();
+        return;
+      }
+
+      for (const record of cleanRecords) store.put(record);
+    };
   });
   return { count: cleanRecords.length };
 }
