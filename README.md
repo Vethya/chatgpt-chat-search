@@ -24,6 +24,16 @@ The shareable ZIP will be created in `dist/` with a dated filename, for example:
 dist/chatgpt-conversation-search-2026-06-20-v0.1.0.zip
 ```
 
+To share the extension with someone else:
+
+1. Send them the generated ZIP file from `dist/`.
+2. Have them unzip it.
+3. Have them open `chrome://extensions`.
+4. Have them enable Developer mode.
+5. Have them choose "Load unpacked".
+6. Have them select the unzipped extension folder.
+7. Have them open `https://chatgpt.com/`, open the extension search, and run Sync.
+
 ## Verify
 
 ```sh
