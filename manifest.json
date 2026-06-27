@@ -30,8 +30,8 @@
   "commands": {
     "open-search": {
       "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
+        "default": "Ctrl+Shift+Period",
+        "mac": "Command+Shift+Period"
       },
       "description": "Open ChatGPT conversation search"
     }

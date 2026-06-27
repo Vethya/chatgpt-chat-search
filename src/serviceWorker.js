@@ -21,7 +21,7 @@ chrome.commands?.onCommand?.addListener(async (command) => {
   if (command !== "open-search") return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id && tab.url?.startsWith("https://chatgpt.com/")) {
-    await chrome.tabs.sendMessage(tab.id, { type: "ui:openSearch" }).catch(() => {});
+    await chrome.tabs.sendMessage(tab.id, { type: "ui:toggleSearch" }).catch(() => {});
   }
 });
 

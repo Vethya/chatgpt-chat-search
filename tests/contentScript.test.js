@@ -19,6 +19,19 @@ test("content script opens search and renders indexed records", async (t) => {
   assert.deepEqual(harness.renderedTitles(), ["First conversation", "Second conversation"]);
 });
 
+test("content script toggles search from the extension shortcut command", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  harness.runtimeMessage({ type: "ui:toggleSearch" });
+  await waitFor(() => harness.element(".cgcs-modal-backdrop").hidden === false);
+
+  harness.runtimeMessage({ type: "ui:toggleSearch" });
+
+  assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
+});
+
 test("content script filters results and navigates selected conversations", async (t) => {
   const harness = await loadContentScript(t, {
     records: [
@@ -150,6 +163,9 @@ async function loadContentScript(t, options = {}) {
     },
     dispatch(selector, type, event = {}) {
       return elements.get(selector).listeners.get(type)(event);
+    },
+    runtimeMessage(message) {
+      messageListeners.forEach((listener) => listener(message));
     },
     renderedTitles() {
       return elements.get(".cgcs-results").children.map((item) =>

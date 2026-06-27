@@ -106,10 +106,7 @@
   input.addEventListener("keydown", handleSearchKeydown);
 
   document.addEventListener("keydown", (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      openSearch();
-    } else if (event.key === "Escape" && !modalBackdrop.hidden) {
+    if (event.key === "Escape" && !modalBackdrop.hidden) {
       closeSearch();
     }
   });
@@ -120,6 +117,7 @@
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "ui:openSearch") openSearch();
+    if (message?.type === "ui:toggleSearch") toggleSearch();
   });
 
   startAutomaticIndexing();
@@ -130,6 +128,14 @@
     renderResults();
     input.focus();
     input.select();
+  }
+
+  function toggleSearch() {
+    if (modalBackdrop.hidden) {
+      openSearch();
+    } else {
+      closeSearch();
+    }
   }
 
   function closeSearch() {
