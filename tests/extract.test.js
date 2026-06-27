@@ -9,7 +9,7 @@ import {
 
 function anchor(href, text, attrs = {}) {
   return {
-    href,
+    href: attrs.resolvedHref || href,
     textContent: text,
     getAttribute(name) {
       if (name === "href") return href;
@@ -67,6 +67,7 @@ test("extracts unique conversation title records from anchors", () => {
 test("normalizes only conversation URLs", () => {
   assert.equal(normalizeConversationUrl("/c/abc", "https://chatgpt.com"), "https://chatgpt.com/c/abc");
   assert.equal(normalizeConversationUrl("/settings", "https://chatgpt.com"), null);
+  assert.equal(normalizeConversationUrl("#content", "https://chatgpt.com/c/abc"), null);
   assert.equal(normalizeConversationUrl("http://[", "https://chatgpt.com"), null);
   assert.equal(normalizeConversationUrl("https://chatgpt.com/c/abc/share", "https://chatgpt.com"), "https://chatgpt.com/c/abc");
 });
@@ -90,11 +91,29 @@ test("skips generic accessibility links before the real conversation title", () 
   const records = extractConversationRecordsFromAnchors(
     [
       anchor("/c/abc-123", "Skip to main content"),
+      anchor("/c/abc-123", "Skip to content"),
+      anchor("/c/abc-123", "Skip directly to content"),
       anchor("/c/abc-123", "Actual chat title")
     ],
     "id:user-1",
     789,
     "https://chatgpt.com"
+  );
+
+  assert.deepEqual(records.map((record) => record.title), ["Actual chat title"]);
+});
+
+test("ignores hash-only skip links that resolve to the current conversation URL", () => {
+  const records = extractConversationRecordsFromAnchors(
+    [
+      anchor("#content", "Skip to content", {
+        resolvedHref: "https://chatgpt.com/c/abc-123#content"
+      }),
+      anchor("/c/abc-123", "Actual chat title")
+    ],
+    "id:user-1",
+    789,
+    "https://chatgpt.com/c/abc-123"
   );
 
   assert.deepEqual(records.map((record) => record.title), ["Actual chat title"]);

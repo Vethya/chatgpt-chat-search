@@ -18,6 +18,7 @@
   const {
     extractConversationAnchorTitle,
     extractConversationRecordsFromDocument,
+    getAnchorHref,
     isNonConversationTitle,
     normalizeConversationUrl
   } = extractModule;
@@ -208,7 +209,7 @@
   function findCurrentConversationTitle(url) {
     const currentAnchor = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
       isUsableConversationAnchor(anchor) &&
-      normalizeConversationUrl(anchor.href || anchor.getAttribute("href"), location.origin) === url
+      normalizeConversationUrl(getAnchorHref(anchor), location.origin) === url
     );
     const anchorTitle = cleanConversationTitle(extractElementTitle(currentAnchor));
     if (anchorTitle) return { title: anchorTitle, source: "anchor" };
@@ -743,7 +744,7 @@
   function isUsableConversationAnchor(anchor) {
     if (!anchor || anchor.closest("#cgcs-root")) return false;
     if (!isVisible(anchor)) return false;
-    if (!normalizeConversationUrl(anchor.href || anchor.getAttribute("href"), location.origin)) return false;
+    if (!normalizeConversationUrl(getAnchorHref(anchor), location.origin)) return false;
     return Boolean(extractConversationAnchorTitle(anchor));
   }
 

@@ -12,7 +12,7 @@ export function extractConversationRecordsFromAnchors(anchors, accountId, synced
   for (const anchor of anchors) {
     if (!isConversationAnchorCandidate(anchor, options)) continue;
 
-    const url = normalizeConversationUrl(anchor.href || anchor.getAttribute?.("href"), origin);
+    const url = normalizeConversationUrl(getAnchorHref(anchor), origin);
     if (!url || seen.has(url)) continue;
 
     const title = extractConversationAnchorTitle(anchor);
@@ -33,6 +33,7 @@ export function extractConversationRecordsFromAnchors(anchors, accountId, synced
 
 export function normalizeConversationUrl(href, origin = "https://chatgpt.com") {
   if (!href) return null;
+  if (String(href).trim().startsWith("#")) return null;
   let parsed;
   try {
     parsed = new URL(href, origin);
@@ -47,7 +48,7 @@ export function normalizeConversationUrl(href, origin = "https://chatgpt.com") {
 
 export function hasConversationLinks(documentRef) {
   return Array.from(documentRef.querySelectorAll("a[href]")).some((anchor) =>
-    Boolean(normalizeConversationUrl(anchor.href || anchor.getAttribute?.("href"), location.origin))
+    Boolean(normalizeConversationUrl(getAnchorHref(anchor), location.origin))
   );
 }
 
@@ -65,7 +66,11 @@ export function extractConversationAnchorTitle(anchor) {
 
 export function isNonConversationTitle(title) {
   const normalized = String(title || "").replace(/\s+/g, " ").trim().toLowerCase();
-  return /^(|chatgpt|new chat|temporary chat|explore gpts|search chats|skip to main content|main content|skip navigation|open sidebar|close sidebar|toggle sidebar)$/.test(normalized);
+  return /^(|chatgpt|new chat|temporary chat|explore gpts|search chats|skip(?:\s+\S+){0,4}\s+content|main content|skip navigation|open sidebar|close sidebar|toggle sidebar)$/.test(normalized);
+}
+
+export function getAnchorHref(anchor) {
+  return anchor?.getAttribute?.("href") || anchor?.href;
 }
 
 function isConversationAnchorCandidate(anchor, options) {
