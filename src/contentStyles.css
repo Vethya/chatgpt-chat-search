@@ -8,13 +8,24 @@
   right: 14px;
   bottom: 14px;
   z-index: 2147483000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid rgba(127, 127, 127, 0.28);
   border-radius: 8px;
   padding: 8px 10px;
   background: Canvas;
   color: CanvasText;
+  font: inherit;
+  line-height: 1;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
   cursor: pointer;
+}
+
+.cgcs-entry-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .cgcs-modal-backdrop,

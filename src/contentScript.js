@@ -46,7 +46,10 @@
   const root = document.createElement("div");
   root.id = "cgcs-root";
   root.innerHTML = `
-    <button class="cgcs-entry" type="button" title="Search conversations">Search</button>
+    <button class="cgcs-entry" type="button" title="Search conversations">
+      <svg class="cgcs-entry-icon lucide lucide-search-icon lucide-search" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+      <span>Search</span>
+    </button>
     <div class="cgcs-modal-backdrop" hidden>
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
         <div class="cgcs-toolbar">
