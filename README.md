@@ -3,7 +3,7 @@
 Better local search for saved ChatGPT conversations.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="ChatGPT Conversation Search running inside ChatGPT" width="900">
+  <img src="assets/screenshot.png" alt="ChatGPT Conversation Search running inside ChatGPT" width="900">
 </p>
 
 This is an unpacked Chromium extension built as a more reliable replacement for ChatGPT's built-in conversation search. It adds a native-feeling search modal to `chatgpt.com` and indexes conversation titles and links locally in your browser so you can quickly jump back to older conversations.
