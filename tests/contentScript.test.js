@@ -93,6 +93,38 @@ test("content script shows a temporary toast after delete", async (t) => {
   assert.equal(harness.element(".cgcs-toast").hidden, true);
 });
 
+test("content script explains index actions in a help dialog", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-info");
+
+  assert.equal(harness.element(".cgcs-help-backdrop").hidden, false);
+  assert.equal(harness.element(".cgcs-help-close").focused, true);
+
+  await harness.click(".cgcs-help-close");
+
+  assert.equal(harness.element(".cgcs-help-backdrop").hidden, true);
+  assert.equal(harness.element(".cgcs-info").focused, true);
+});
+
+test("content script does not clear the local index when confirmation is declined", async (t) => {
+  const harness = await loadContentScript(t, {
+    confirmResponse: false,
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-reset");
+
+  assert.deepEqual(harness.confirmMessages, [
+    "Clear the local conversation index for this ChatGPT account?"
+  ]);
+  assert.equal(harness.sentMessages.some((message) => message.type === "records:reset"), false);
+});
+
 test("content script reports missing account identity", async (t) => {
   const harness = await loadContentScript(t, {
     accountElement: null,
@@ -116,6 +148,7 @@ async function loadContentScript(t, options = {}) {
   const previousMutationObserver = globalThis.MutationObserver;
   const previousConfirm = globalThis.confirm;
   const sentMessages = [];
+  const confirmMessages = [];
   const messageListeners = [];
   const windowTimeouts = [];
   const elements = createContentScriptElements();
@@ -154,6 +187,7 @@ async function loadContentScript(t, options = {}) {
   };
   const harness = {
     sentMessages,
+    confirmMessages,
     assignedUrl: "",
     element(selector) {
       return elements.get(selector);
@@ -209,7 +243,10 @@ async function loadContentScript(t, options = {}) {
   globalThis.MutationObserver = class {
     observe() {}
   };
-  globalThis.confirm = () => true;
+  globalThis.confirm = (message) => {
+    confirmMessages.push(message);
+    return options.confirmResponse ?? true;
+  };
   globalThis.chrome = {
     runtime: {
       lastError: null,
@@ -258,11 +295,14 @@ function createContentScriptElements() {
     [".cgcs-status", new FakeElement("div")],
     [".cgcs-toast", new FakeElement("div", { hidden: true })],
     [".cgcs-results", new FakeElement("ol")],
+    [".cgcs-info", new FakeElement("button")],
     [".cgcs-quick-sync", new FakeElement("button")],
     [".cgcs-sync", new FakeElement("button")],
     [".cgcs-import", new FakeElement("button")],
     [".cgcs-export", new FakeElement("button")],
     [".cgcs-reset", new FakeElement("button")],
+    [".cgcs-help-backdrop", new FakeElement("div", { hidden: true })],
+    [".cgcs-help-close", new FakeElement("button")],
     [".cgcs-sync-overlay", new FakeElement("div", { hidden: true })],
     [".cgcs-sync-detail", new FakeElement("p")],
     [".cgcs-cancel", new FakeElement("button")]

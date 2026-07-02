@@ -56,16 +56,55 @@
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
         <div class="cgcs-toolbar">
           <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
-          <button class="cgcs-small cgcs-quick-sync" type="button" title="Sync recent conversations">Quick</button>
-          <button class="cgcs-small cgcs-sync" type="button">Sync</button>
+          <div class="cgcs-sync-actions" aria-label="Sync actions">
+            <button class="cgcs-small cgcs-primary cgcs-quick-sync" type="button" title="Adds new or changed conversations from the top of the sidebar.">Sync recent</button>
+            <button class="cgcs-small cgcs-sync" type="button" title="Scans the full sidebar and rebuilds the local index.">Full sync</button>
+          </div>
         </div>
-        <div class="cgcs-status"></div>
+        <div class="cgcs-status-row">
+          <div class="cgcs-status"></div>
+          <button class="cgcs-icon-button cgcs-info" type="button" title="Explain index actions" aria-label="Explain index actions">
+            <svg class="cgcs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>
+          </button>
+        </div>
         <ol class="cgcs-results"></ol>
         <div class="cgcs-actions">
-          <button class="cgcs-small cgcs-import" type="button">Import</button>
-          <button class="cgcs-small cgcs-export" type="button">Export</button>
-          <button class="cgcs-small cgcs-reset" type="button">Clear</button>
+          <button class="cgcs-small cgcs-import" type="button" title="Load a previously exported local index backup.">Import backup</button>
+          <button class="cgcs-small cgcs-export" type="button" title="Download a JSON backup of this local index.">Export backup</button>
+          <button class="cgcs-small cgcs-danger cgcs-reset" type="button" title="Delete only the local search index for this account.">Clear index</button>
         </div>
+      </section>
+    </div>
+    <div class="cgcs-help-backdrop" hidden>
+      <section class="cgcs-help-dialog" role="dialog" aria-modal="true" aria-labelledby="cgcs-help-title">
+        <div class="cgcs-help-header">
+          <h2 id="cgcs-help-title">Index actions</h2>
+          <button class="cgcs-icon-button cgcs-help-close" type="button" title="Close" aria-label="Close">
+            <svg class="cgcs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+        <dl class="cgcs-help-list">
+          <div>
+            <dt>Sync recent</dt>
+            <dd>Adds new or changed conversations from the top of the sidebar. Best for everyday updates.</dd>
+          </div>
+          <div>
+            <dt>Full sync</dt>
+            <dd>Scans the full sidebar and rebuilds the local index for the current ChatGPT account.</dd>
+          </div>
+          <div>
+            <dt>Import backup</dt>
+            <dd>Loads a previously exported JSON backup into the local browser index.</dd>
+          </div>
+          <div>
+            <dt>Export backup</dt>
+            <dd>Downloads the local index as JSON. Conversation contents are not included.</dd>
+          </div>
+          <div>
+            <dt>Clear index</dt>
+            <dd>Deletes only this account's local search index after confirmation. It does not delete ChatGPT conversations.</dd>
+          </div>
+        </dl>
       </section>
     </div>
     <div class="cgcs-sync-overlay" hidden>
@@ -85,21 +124,26 @@
   const status = root.querySelector(".cgcs-status");
   const toast = root.querySelector(".cgcs-toast");
   const resultsList = root.querySelector(".cgcs-results");
+  const infoButton = root.querySelector(".cgcs-info");
   const quickSyncButton = root.querySelector(".cgcs-quick-sync");
   const syncButton = root.querySelector(".cgcs-sync");
   const importButton = root.querySelector(".cgcs-import");
   const exportButton = root.querySelector(".cgcs-export");
   const resetButton = root.querySelector(".cgcs-reset");
+  const helpBackdrop = root.querySelector(".cgcs-help-backdrop");
+  const helpCloseButton = root.querySelector(".cgcs-help-close");
   const syncOverlay = root.querySelector(".cgcs-sync-overlay");
   const syncDetail = root.querySelector(".cgcs-sync-detail");
   const cancelButton = root.querySelector(".cgcs-cancel");
 
   entryButton.addEventListener("click", openSearch);
+  infoButton.addEventListener("click", openHelp);
   quickSyncButton.addEventListener("click", runRecentConversationSync);
   syncButton.addEventListener("click", runConversationSync);
   importButton.addEventListener("click", importIndex);
   exportButton.addEventListener("click", exportIndex);
   resetButton.addEventListener("click", resetIndex);
+  helpCloseButton.addEventListener("click", () => closeHelp());
   cancelButton.addEventListener("click", () => state.syncCancel?.());
   input.addEventListener("input", () => {
     state.query = input.value;
@@ -108,13 +152,22 @@
   input.addEventListener("keydown", handleSearchKeydown);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !modalBackdrop.hidden) {
+    if (event.key !== "Escape") return;
+    if (!helpBackdrop.hidden) {
+      event.preventDefault();
+      closeHelp();
+      return;
+    }
+    if (!modalBackdrop.hidden) {
       closeSearch();
     }
   });
 
   modalBackdrop.addEventListener("click", (event) => {
     if (event.target === modalBackdrop) closeSearch();
+  });
+  helpBackdrop.addEventListener("click", (event) => {
+    if (event.target === helpBackdrop) closeHelp();
   });
 
   chrome.runtime.onMessage.addListener((message) => {
@@ -141,7 +194,18 @@
   }
 
   function closeSearch() {
+    closeHelp({ restoreFocus: false });
     modalBackdrop.hidden = true;
+  }
+
+  function openHelp() {
+    helpBackdrop.hidden = false;
+    helpCloseButton.focus();
+  }
+
+  function closeHelp({ restoreFocus = true } = {}) {
+    helpBackdrop.hidden = true;
+    if (restoreFocus) infoButton.focus();
   }
 
   function startAutomaticIndexing() {
@@ -270,7 +334,7 @@
       return;
     }
     if (state.records.length === 0) {
-      status.textContent = "No synced conversations yet. Run Sync to build the local index.";
+      status.textContent = "No synced conversations yet. Run Full sync to build the local index.";
       return;
     }
     if (state.results.length === 0) {
@@ -404,7 +468,7 @@
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try quick sync again.";
+      status.textContent = "Open the ChatGPT sidebar, then try Sync recent again.";
       return;
     }
 
@@ -442,11 +506,11 @@
 
       await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
       state.records = mergeRecentRecords(state.records, records);
-      status.textContent = `Quick synced ${records.length} recent conversation${records.length === 1 ? "" : "s"}.`;
+      status.textContent = `Synced ${records.length} recent conversation${records.length === 1 ? "" : "s"}.`;
       renderResults();
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
-        ? "Quick sync canceled. Previous index unchanged."
+        ? "Sync recent canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
     } finally {
       syncOverlay.hidden = true;

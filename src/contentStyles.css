@@ -29,6 +29,7 @@
 }
 
 .cgcs-modal-backdrop,
+.cgcs-help-backdrop,
 .cgcs-sync-overlay {
   position: fixed;
   inset: 0;
@@ -40,8 +41,13 @@
 }
 
 .cgcs-modal-backdrop[hidden],
+.cgcs-help-backdrop[hidden],
 .cgcs-sync-overlay[hidden] {
   display: none;
+}
+
+.cgcs-help-backdrop {
+  z-index: 2147483002;
 }
 
 .cgcs-modal {
@@ -63,6 +69,11 @@
   gap: 8px;
 }
 
+.cgcs-sync-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .cgcs-input {
   flex: 1;
   min-width: 0;
@@ -76,18 +87,61 @@
 }
 
 .cgcs-small,
-.cgcs-cancel {
+.cgcs-cancel,
+.cgcs-icon-button {
   border: 1px solid rgba(127, 127, 127, 0.32);
   border-radius: 8px;
-  padding: 8px 10px;
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
+.cgcs-small,
+.cgcs-cancel {
+  min-height: 42px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.cgcs-primary {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.cgcs-danger {
+  border-color: color-mix(in srgb, #ef4444 58%, transparent);
+  color: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+}
+
+.cgcs-danger:hover {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+.cgcs-icon-button {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+}
+
+.cgcs-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.cgcs-status-row {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .cgcs-status {
   min-height: 20px;
+  flex: 1;
   color: color-mix(in srgb, CanvasText 72%, transparent);
   font-size: 13px;
 }
@@ -155,8 +209,56 @@
 
 .cgcs-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.cgcs-help-dialog {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 16px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.3);
+}
+
+.cgcs-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cgcs-help-header h2 {
+  margin: 0;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.cgcs-help-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.cgcs-help-list div {
+  display: grid;
+  gap: 3px;
+}
+
+.cgcs-help-list dt {
+  font-weight: 650;
+}
+
+.cgcs-help-list dd {
+  margin: 0;
+  color: color-mix(in srgb, CanvasText 72%, transparent);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .cgcs-toast {
@@ -193,4 +295,21 @@
 .cgcs-sync-detail {
   display: block;
   margin: 0 0 12px;
+}
+
+@media (max-width: 560px) {
+  .cgcs-toolbar {
+    flex-direction: column;
+  }
+
+  .cgcs-sync-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .cgcs-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
