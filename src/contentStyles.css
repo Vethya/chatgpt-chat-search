@@ -99,6 +99,10 @@
 
 .cgcs-small,
 .cgcs-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 42px;
   padding: 8px 10px;
   white-space: nowrap;
@@ -129,6 +133,7 @@
 .cgcs-icon {
   width: 16px;
   height: 16px;
+  flex: none;
 }
 
 .cgcs-status-row {
@@ -216,15 +221,23 @@
 }
 
 .cgcs-delete {
-  min-width: 72px;
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
   border: 0;
   border-radius: 6px;
-  padding: 10px;
+  padding: 0;
   background: transparent;
   color: color-mix(in srgb, CanvasText 58%, transparent);
   font: inherit;
-  font-size: 12px;
   cursor: pointer;
+}
+
+.cgcs-delete .cgcs-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .cgcs-title {

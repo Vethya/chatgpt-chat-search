@@ -121,6 +121,10 @@ h1 {
 
 button {
   min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid #d0d7de;
   border-radius: 8px;
   background: #ffffff;
@@ -128,6 +132,12 @@ button {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.button-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 button:hover {

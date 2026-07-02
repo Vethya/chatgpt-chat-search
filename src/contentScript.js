@@ -45,11 +45,22 @@
     toastTimer: null
   };
 
+  const icon = {
+    database: svg(`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`),
+    download: svg(`<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
+    help: svg(`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>`),
+    refresh: svg(`<path d="M3 12a9 9 0 0 1 14.9-6.8L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-14.9 6.8L3 16"/><path d="M3 21v-5h5"/>`),
+    search: svg(`<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`, "cgcs-entry-icon cgcs-icon"),
+    trash: svg(`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>`),
+    upload: svg(`<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
+    x: svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
+  };
+
   const root = document.createElement("div");
   root.id = "cgcs-root";
   root.innerHTML = `
     <button class="cgcs-entry" type="button" title="Search conversations">
-      <svg class="cgcs-entry-icon lucide lucide-search-icon lucide-search" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+      ${icon.search}
       <span>Search</span>
     </button>
     <div class="cgcs-modal-backdrop" hidden>
@@ -57,22 +68,22 @@
         <div class="cgcs-toolbar">
           <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
           <div class="cgcs-sync-actions" aria-label="Sync actions">
-            <button class="cgcs-small cgcs-primary cgcs-quick-sync" type="button" title="Adds new or changed conversations from the top of the sidebar.">Sync recent</button>
-            <button class="cgcs-small cgcs-sync" type="button" title="Scans the full sidebar and rebuilds the local index.">Full sync</button>
+            <button class="cgcs-small cgcs-primary cgcs-quick-sync" type="button" title="Adds new or changed conversations from the top of the sidebar.">${icon.refresh}<span>Sync recent</span></button>
+            <button class="cgcs-small cgcs-sync" type="button" title="Scans the full sidebar and rebuilds the local index.">${icon.database}<span>Full sync</span></button>
           </div>
         </div>
         <div class="cgcs-status-row">
           <div class="cgcs-status"></div>
           <button class="cgcs-icon-button cgcs-info" type="button" title="Explain index actions" aria-label="Explain index actions">
-            <svg class="cgcs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>
+            ${icon.help}
           </button>
         </div>
         <div class="cgcs-empty-state" hidden></div>
         <ol class="cgcs-results"></ol>
         <div class="cgcs-actions">
-          <button class="cgcs-small cgcs-import" type="button" title="Load a previously exported local index backup.">Import backup</button>
-          <button class="cgcs-small cgcs-export" type="button" title="Download a JSON backup of this local index.">Export backup</button>
-          <button class="cgcs-small cgcs-danger cgcs-reset" type="button" title="Delete only the local search index for this account.">Clear index</button>
+          <button class="cgcs-small cgcs-import" type="button" title="Import">${icon.upload}<span>Import</span></button>
+          <button class="cgcs-small cgcs-export" type="button" title="Export">${icon.download}<span>Export</span></button>
+          <button class="cgcs-small cgcs-danger cgcs-reset" type="button" title="Clear index">${icon.trash}<span>Clear index</span></button>
         </div>
       </section>
     </div>
@@ -81,7 +92,7 @@
         <div class="cgcs-help-header">
           <h2 id="cgcs-help-title">Index actions</h2>
           <button class="cgcs-icon-button cgcs-help-close" type="button" title="Close" aria-label="Close">
-            <svg class="cgcs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            ${icon.x}
           </button>
         </div>
         <dl class="cgcs-help-list">
@@ -98,11 +109,11 @@
             <dd>Scans the full sidebar and rebuilds the local index for the current ChatGPT account.</dd>
           </div>
           <div>
-            <dt>Import backup</dt>
+            <dt>Import</dt>
             <dd>Loads a previously exported JSON backup into the local browser index.</dd>
           </div>
           <div>
-            <dt>Export backup</dt>
+            <dt>Export</dt>
             <dd>Downloads the local index as JSON. Conversation contents are not included.</dd>
           </div>
           <div>
@@ -116,12 +127,16 @@
       <div class="cgcs-sync-card">
         <strong class="cgcs-sync-title">Syncing conversations</strong>
         <p class="cgcs-sync-detail">Preparing...</p>
-        <button class="cgcs-cancel" type="button">Cancel</button>
+        <button class="cgcs-cancel" type="button">${icon.x}<span>Cancel</span></button>
       </div>
     </div>
     <div class="cgcs-toast" role="status" hidden></div>
   `;
   document.documentElement.append(root);
+
+  function svg(paths, className = "cgcs-icon") {
+    return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+  }
 
   const entryButton = root.querySelector(".cgcs-entry");
   const modalBackdrop = root.querySelector(".cgcs-modal-backdrop");
@@ -363,7 +378,7 @@
           <span class="cgcs-title"></span>
           <span class="cgcs-meta"></span>
         </button>
-        <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">Remove</button>
+        <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">${icon.trash}</button>
       `;
       item.querySelector(".cgcs-title").textContent = result.record.title;
       item.querySelector(".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
