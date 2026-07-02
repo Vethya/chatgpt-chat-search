@@ -39,10 +39,13 @@ test("content script explains automatic indexing when the local index is empty",
 
   await harness.click(".cgcs-entry");
 
+  assert.equal(harness.element(".cgcs-status").textContent, "");
   assert.equal(
-    harness.element(".cgcs-status").textContent,
+    harness.element(".cgcs-empty-state").textContent,
     "New chats are saved automatically. Use Full sync to bring in your existing sidebar history."
   );
+  assert.equal(harness.element(".cgcs-empty-state").hidden, false);
+  assert.equal(harness.element(".cgcs-modal").classList.contains("is-empty"), true);
 });
 
 test("content script filters results and navigates selected conversations", async (t) => {
@@ -304,8 +307,10 @@ function createContentScriptElements() {
   return new Map([
     [".cgcs-entry", new FakeElement("button")],
     [".cgcs-modal-backdrop", new FakeElement("div", { hidden: true })],
+    [".cgcs-modal", new FakeElement("section")],
     [".cgcs-input", new FakeElement("input")],
     [".cgcs-status", new FakeElement("div")],
+    [".cgcs-empty-state", new FakeElement("div", { hidden: true })],
     [".cgcs-toast", new FakeElement("div", { hidden: true })],
     [".cgcs-results", new FakeElement("ol")],
     [".cgcs-info", new FakeElement("button")],
@@ -364,6 +369,21 @@ async function waitFor(predicate) {
 class FakeElement {
   constructor(tagName, options = {}) {
     this.tagName = tagName;
+    const classNames = new Set();
+    this.classList = {
+      toggle(name, force) {
+        const shouldAdd = force ?? !classNames.has(name);
+        if (shouldAdd) {
+          classNames.add(name);
+        } else {
+          classNames.delete(name);
+        }
+        return shouldAdd;
+      },
+      contains(name) {
+        return classNames.has(name);
+      }
+    };
     this.listeners = new Map();
     this.children = [];
     this.hidden = options.hidden || false;

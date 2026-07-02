@@ -52,7 +52,7 @@
 
 .cgcs-modal {
   width: min(720px, calc(100vw - 28px));
-  max-height: min(720px, calc(100vh - 48px));
+  height: min(720px, calc(100vh - 48px));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -146,13 +146,44 @@
   font-size: 13px;
 }
 
+.cgcs-empty-state {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+  color: color-mix(in srgb, CanvasText 72%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.cgcs-empty-state[hidden] {
+  display: none;
+}
+
 .cgcs-results {
+  flex: 1;
+  min-height: 0;
   display: grid;
   gap: 4px;
   overflow: auto;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.cgcs-modal.is-empty .cgcs-status {
+  display: none;
+}
+
+.cgcs-modal.is-empty .cgcs-status-row {
+  justify-content: flex-end;
+}
+
+.cgcs-modal.is-empty .cgcs-results {
+  display: none;
 }
 
 .cgcs-results li {

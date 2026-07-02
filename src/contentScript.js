@@ -67,6 +67,7 @@
             <svg class="cgcs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>
           </button>
         </div>
+        <div class="cgcs-empty-state" hidden></div>
         <ol class="cgcs-results"></ol>
         <div class="cgcs-actions">
           <button class="cgcs-small cgcs-import" type="button" title="Load a previously exported local index backup.">Import backup</button>
@@ -124,8 +125,10 @@
 
   const entryButton = root.querySelector(".cgcs-entry");
   const modalBackdrop = root.querySelector(".cgcs-modal-backdrop");
+  const modal = root.querySelector(".cgcs-modal");
   const input = root.querySelector(".cgcs-input");
   const status = root.querySelector(".cgcs-status");
+  const emptyState = root.querySelector(".cgcs-empty-state");
   const toast = root.querySelector(".cgcs-toast");
   const resultsList = root.querySelector(".cgcs-results");
   const infoButton = root.querySelector(".cgcs-info");
@@ -332,13 +335,18 @@
     state.results = searchConversations(state.records, state.query, 30);
     state.selectedIndex = Math.min(state.selectedIndex, Math.max(0, state.results.length - 1));
     resultsList.replaceChildren();
+    const hasEmptyIndex = Boolean(state.accountId && state.records.length === 0);
+    modal.classList.toggle("is-empty", hasEmptyIndex);
+    emptyState.hidden = !hasEmptyIndex;
+    emptyState.textContent = "";
 
     if (!state.accountId) {
       status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
       return;
     }
     if (state.records.length === 0) {
-      status.textContent = "New chats are saved automatically. Use Full sync to bring in your existing sidebar history.";
+      status.textContent = "";
+      emptyState.textContent = "New chats are saved automatically. Use Full sync to bring in your existing sidebar history.";
       return;
     }
     if (state.results.length === 0) {
