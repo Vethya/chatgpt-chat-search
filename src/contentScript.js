@@ -85,6 +85,10 @@
         </div>
         <dl class="cgcs-help-list">
           <div>
+            <dt>Automatic indexing</dt>
+            <dd>Chats you open or start are saved to the local index automatically. You usually do not need to sync manually.</dd>
+          </div>
+          <div>
             <dt>Sync recent</dt>
             <dd>Adds new or changed conversations from the top of the sidebar. Best for everyday updates.</dd>
           </div>
@@ -334,7 +338,7 @@
       return;
     }
     if (state.records.length === 0) {
-      status.textContent = "No synced conversations yet. Run Full sync to build the local index.";
+      status.textContent = "New chats are saved automatically. Use Full sync to bring in your existing sidebar history.";
       return;
     }
     if (state.results.length === 0) {

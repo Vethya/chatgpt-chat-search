@@ -32,6 +32,19 @@ test("content script toggles search from the extension shortcut command", async 
   assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
 });
 
+test("content script explains automatic indexing when the local index is empty", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: []
+  });
+
+  await harness.click(".cgcs-entry");
+
+  assert.equal(
+    harness.element(".cgcs-status").textContent,
+    "New chats are saved automatically. Use Full sync to bring in your existing sidebar history."
+  );
+});
+
 test("content script filters results and navigates selected conversations", async (t) => {
   const harness = await loadContentScript(t, {
     records: [
