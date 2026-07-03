@@ -142,6 +142,9 @@ test("content script explains index actions in a help dialog", async (t) => {
 
   assert.equal(harness.element(".cgcs-help-backdrop").hidden, false);
   assert.equal(harness.element(".cgcs-help-close").focused, true);
+  assert.equal((harness.rootMarkup().match(/class="cgcs-help-card/g) || []).length, 6);
+  assert.match(harness.rootMarkup(), /class="cgcs-help-icon"/);
+  assert.match(harness.rootMarkup(), /Automatic indexing/);
 
   await harness.click(".cgcs-help-close");
 
@@ -239,6 +242,9 @@ async function loadContentScript(t, options = {}) {
     },
     runtimeMessage(message) {
       messageListeners.forEach((listener) => listener(message));
+    },
+    rootMarkup() {
+      return documentRef.documentElement.children.at(-1)?.innerHTML || "";
     },
     renderedTitles() {
       return elements.get(".cgcs-results").children.map((item) =>

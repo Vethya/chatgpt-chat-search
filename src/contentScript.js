@@ -51,6 +51,7 @@
     help: svg(`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>`),
     refresh: svg(`<path d="M3 12a9 9 0 0 1 14.9-6.8L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-14.9 6.8L3 16"/><path d="M3 21v-5h5"/>`),
     search: svg(`<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`, "cgcs-entry-icon cgcs-icon"),
+    sparkles: svg(`<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>`),
     trash: svg(`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>`),
     upload: svg(`<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
     x: svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
@@ -98,32 +99,50 @@
             ${icon.x}
           </button>
         </div>
-        <dl class="cgcs-help-list">
-          <div>
-            <dt>Automatic indexing</dt>
-            <dd>Chats you open or start are saved to the local index automatically. You usually do not need to sync manually.</dd>
-          </div>
-          <div>
-            <dt>Sync recent</dt>
-            <dd>Adds new or changed conversations from the top of the sidebar. Best for everyday updates.</dd>
-          </div>
-          <div>
-            <dt>Full sync</dt>
-            <dd>Scans the full sidebar and rebuilds the local index for the current ChatGPT account.</dd>
-          </div>
-          <div>
-            <dt>Import</dt>
-            <dd>Loads a previously exported JSON backup into the local browser index.</dd>
-          </div>
-          <div>
-            <dt>Export</dt>
-            <dd>Downloads the local index as JSON. Conversation contents are not included.</dd>
-          </div>
-          <div>
-            <dt>Clear index</dt>
-            <dd>Deletes only this account's local search index after confirmation. It does not delete ChatGPT conversations.</dd>
-          </div>
-        </dl>
+        <div class="cgcs-help-list" role="list">
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.sparkles}</span>
+            <div class="cgcs-help-copy">
+              <h3>Automatic indexing</h3>
+              <p>Chats you open or start are saved to the local index automatically. You usually do not need to sync manually.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.refresh}</span>
+            <div class="cgcs-help-copy">
+              <h3>Sync recent</h3>
+              <p>Adds new or changed conversations from the top of the sidebar. Best for everyday updates.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.database}</span>
+            <div class="cgcs-help-copy">
+              <h3>Full sync</h3>
+              <p>Scans the full sidebar and rebuilds the local index for the current ChatGPT account.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.upload}</span>
+            <div class="cgcs-help-copy">
+              <h3>Import</h3>
+              <p>Loads a previously exported JSON backup into the local browser index.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.download}</span>
+            <div class="cgcs-help-copy">
+              <h3>Export</h3>
+              <p>Downloads the local index as JSON. Conversation contents are not included.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card is-danger" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.trash}</span>
+            <div class="cgcs-help-copy">
+              <h3>Clear index</h3>
+              <p>Deletes only this account's local search index after confirmation. It does not delete ChatGPT conversations.</p>
+            </div>
+          </article>
+        </div>
       </section>
     </div>
     <div class="cgcs-sync-overlay" hidden>

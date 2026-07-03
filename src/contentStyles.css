@@ -292,7 +292,9 @@
 }
 
 .cgcs-help-dialog {
-  width: min(420px, calc(100vw - 32px));
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 32px));
+  overflow: auto;
   border: 1px solid rgba(127, 127, 127, 0.28);
   border-radius: 8px;
   padding: 16px;
@@ -318,20 +320,51 @@
 
 .cgcs-help-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   margin: 0;
 }
 
-.cgcs-help-list div {
+.cgcs-help-card {
   display: grid;
-  gap: 3px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid rgba(127, 127, 127, 0.22);
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, CanvasText 5%, transparent);
 }
 
-.cgcs-help-list dt {
+.cgcs-help-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(127, 127, 127, 0.22);
+  border-radius: 8px;
+  background: Canvas;
+  color: color-mix(in srgb, CanvasText 76%, transparent);
+}
+
+.cgcs-help-card.is-danger .cgcs-help-icon {
+  border-color: color-mix(in srgb, #ef4444 34%, transparent);
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+}
+
+.cgcs-help-copy {
+  min-width: 0;
+}
+
+.cgcs-help-copy h3 {
+  margin: 0 0 3px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.25;
   font-weight: 650;
 }
 
-.cgcs-help-list dd {
+.cgcs-help-copy p {
   margin: 0;
   color: color-mix(in srgb, CanvasText 72%, transparent);
   font-size: 13px;
