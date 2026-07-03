@@ -28,6 +28,38 @@
   flex: none;
 }
 
+.cgcs-shortcut {
+  max-width: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(127, 127, 127, 0.24);
+  border-radius: 6px;
+  padding: 2px 0;
+  background: color-mix(in srgb, CanvasText 7%, transparent);
+  color: color-mix(in srgb, CanvasText 66%, transparent);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    max-width 180ms ease,
+    opacity 140ms ease,
+    padding 180ms ease,
+    transform 180ms ease;
+  white-space: nowrap;
+}
+
+.cgcs-entry:hover .cgcs-shortcut,
+.cgcs-entry:focus-visible .cgcs-shortcut {
+  max-width: 88px;
+  padding-inline: 6px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .cgcs-modal-backdrop,
 .cgcs-help-backdrop,
 .cgcs-sync-overlay {
@@ -452,6 +484,10 @@
 @media (prefers-reduced-motion: reduce) {
   .cgcs-sync-visual .cgcs-icon {
     animation: none;
+  }
+
+  .cgcs-shortcut {
+    transition: none;
   }
 }
 

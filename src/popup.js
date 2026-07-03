@@ -1,6 +1,9 @@
 const statusElement = document.querySelector("#status");
 const openSearchButton = document.querySelector("#open-search");
 const openChatGptButton = document.querySelector("#open-chatgpt");
+const shortcutLabelElement = document.querySelector("#shortcut-label");
+
+shortcutLabelElement.textContent = getShortcutLabel();
 
 openSearchButton.addEventListener("click", openSearch);
 openChatGptButton.addEventListener("click", () => chrome.tabs.create({ url: "https://chatgpt.com/" }));
@@ -146,6 +149,11 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
+function getShortcutLabel() {
+  const platform = globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "";
+  return /mac/i.test(platform) ? "Cmd+Shift+." : "Ctrl+Shift+.";
 }
 
 function sendRuntimeMessage(message) {

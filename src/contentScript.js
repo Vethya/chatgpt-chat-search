@@ -44,6 +44,7 @@
     documentTitleChangedAt: 0,
     toastTimer: null
   };
+  const shortcutLabel = getShortcutLabel();
 
   const icon = {
     database: svg(`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`),
@@ -63,6 +64,7 @@
     <button class="cgcs-entry" type="button" title="Search conversations">
       ${icon.search}
       <span>Search</span>
+      <kbd class="cgcs-shortcut">${shortcutLabel}</kbd>
     </button>
     <div class="cgcs-modal-backdrop" hidden>
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
@@ -160,6 +162,11 @@
 
   function svg(paths, className = "cgcs-icon") {
     return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+  }
+
+  function getShortcutLabel() {
+    const platform = globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "";
+    return /mac/i.test(platform) ? "Cmd+Shift+." : "Ctrl+Shift+.";
   }
 
   const entryButton = root.querySelector(".cgcs-entry");

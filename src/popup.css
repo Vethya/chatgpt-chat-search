@@ -140,7 +140,42 @@ button {
   flex: none;
 }
 
+.button-shortcut {
+  max-width: 0;
+  overflow: hidden;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 2px 0;
+  background: #f6f8fa;
+  color: #656d76;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    max-width 180ms ease,
+    opacity 140ms ease,
+    padding 180ms ease,
+    transform 180ms ease;
+  white-space: nowrap;
+}
+
+button:hover .button-shortcut,
+button:focus-visible .button-shortcut {
+  max-width: 88px;
+  padding-inline: 6px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
 button:hover {
   background: #f3f4f6;
   border-color: #afb8c1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-shortcut {
+    transition: none;
+  }
 }
