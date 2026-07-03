@@ -66,7 +66,10 @@
     <div class="cgcs-modal-backdrop" hidden>
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
         <div class="cgcs-toolbar">
-          <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
+          <div class="cgcs-input-wrap">
+            <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
+            <button class="cgcs-clear-search" type="button" title="Clear search" aria-label="Clear search" hidden>${icon.x}</button>
+          </div>
           <div class="cgcs-sync-actions" aria-label="Sync actions">
             <button class="cgcs-small cgcs-primary cgcs-quick-sync" type="button" title="Adds new or changed conversations from the top of the sidebar.">${icon.refresh}<span>Sync recent</span></button>
             <button class="cgcs-small cgcs-sync" type="button" title="Scans the full sidebar and rebuilds the local index.">${icon.database}<span>Full sync</span></button>
@@ -144,6 +147,7 @@
   const modalBackdrop = root.querySelector(".cgcs-modal-backdrop");
   const modal = root.querySelector(".cgcs-modal");
   const input = root.querySelector(".cgcs-input");
+  const clearSearchButton = root.querySelector(".cgcs-clear-search");
   const status = root.querySelector(".cgcs-status");
   const emptyState = root.querySelector(".cgcs-empty-state");
   const toast = root.querySelector(".cgcs-toast");
@@ -174,8 +178,10 @@
   cancelButton.addEventListener("click", () => state.syncCancel?.());
   input.addEventListener("input", () => {
     state.query = input.value;
+    updateSearchClearButton();
     renderResults();
   });
+  clearSearchButton.addEventListener("click", clearSearch);
   input.addEventListener("keydown", handleSearchKeydown);
 
   document.addEventListener("keydown", (event) => {
@@ -207,6 +213,7 @@
   async function openSearch() {
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
+    updateSearchClearButton();
     renderResults();
     input.focus();
     input.select();
@@ -233,6 +240,18 @@
   function closeHelp({ restoreFocus = true } = {}) {
     helpBackdrop.hidden = true;
     if (restoreFocus) infoButton.focus();
+  }
+
+  function clearSearch() {
+    input.value = "";
+    state.query = "";
+    updateSearchClearButton();
+    renderResults();
+    input.focus();
+  }
+
+  function updateSearchClearButton() {
+    clearSearchButton.hidden = input.value.length === 0;
   }
 
   function startAutomaticIndexing() {

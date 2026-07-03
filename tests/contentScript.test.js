@@ -65,6 +65,29 @@ test("content script filters results and navigates selected conversations", asyn
   assert.equal(harness.assignedUrl, "https://chatgpt.com/c/second");
 });
 
+test("content script clears search with a dedicated clear button", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [
+      { title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 },
+      { title: "Second conversation", url: "https://chatgpt.com/c/second", order: 1 }
+    ]
+  });
+
+  await harness.click(".cgcs-entry");
+  harness.element(".cgcs-input").value = "second";
+  harness.dispatch(".cgcs-input", "input");
+
+  assert.equal(harness.element(".cgcs-clear-search").hidden, false);
+  assert.deepEqual(harness.renderedTitles(), ["Second conversation"]);
+
+  await harness.click(".cgcs-clear-search");
+
+  assert.equal(harness.element(".cgcs-input").value, "");
+  assert.equal(harness.element(".cgcs-clear-search").hidden, true);
+  assert.equal(harness.element(".cgcs-input").focused, true);
+  assert.deepEqual(harness.renderedTitles(), ["First conversation", "Second conversation"]);
+});
+
 test("content script deletes a single local record", async (t) => {
   const harness = await loadContentScript(t, {
     records: [
@@ -309,6 +332,7 @@ function createContentScriptElements() {
     [".cgcs-modal-backdrop", new FakeElement("div", { hidden: true })],
     [".cgcs-modal", new FakeElement("section")],
     [".cgcs-input", new FakeElement("input")],
+    [".cgcs-clear-search", new FakeElement("button", { hidden: true })],
     [".cgcs-status", new FakeElement("div")],
     [".cgcs-empty-state", new FakeElement("div", { hidden: true })],
     [".cgcs-toast", new FakeElement("div", { hidden: true })],
