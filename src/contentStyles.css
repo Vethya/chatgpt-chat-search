@@ -208,7 +208,8 @@
   gap: 4px;
   overflow: auto;
   margin: 0;
-  padding: 0;
+  padding: 0 18px 0 0;
+  scrollbar-gutter: stable;
   list-style: none;
 }
 
