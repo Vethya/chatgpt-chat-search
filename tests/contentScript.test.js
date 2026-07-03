@@ -322,6 +322,9 @@ function createContentScriptElements() {
     [".cgcs-help-backdrop", new FakeElement("div", { hidden: true })],
     [".cgcs-help-close", new FakeElement("button")],
     [".cgcs-sync-overlay", new FakeElement("div", { hidden: true })],
+    [".cgcs-sync-visual", new FakeElement("div")],
+    [".cgcs-sync-title", new FakeElement("strong")],
+    [".cgcs-sync-summary", new FakeElement("p")],
     [".cgcs-sync-detail", new FakeElement("p")],
     [".cgcs-cancel", new FakeElement("button")]
   ]);

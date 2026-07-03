@@ -125,8 +125,10 @@
     </div>
     <div class="cgcs-sync-overlay" hidden>
       <div class="cgcs-sync-card">
-        <strong class="cgcs-sync-title">Syncing conversations</strong>
-        <p class="cgcs-sync-detail">Preparing...</p>
+        <div class="cgcs-sync-visual" aria-hidden="true"></div>
+        <strong class="cgcs-sync-title">Preparing sync</strong>
+        <p class="cgcs-sync-summary">Your current index stays unchanged until sync finishes.</p>
+        <p class="cgcs-sync-detail" role="status" aria-live="polite">Preparing...</p>
         <button class="cgcs-cancel" type="button">${icon.x}<span>Cancel</span></button>
       </div>
     </div>
@@ -155,6 +157,9 @@
   const helpBackdrop = root.querySelector(".cgcs-help-backdrop");
   const helpCloseButton = root.querySelector(".cgcs-help-close");
   const syncOverlay = root.querySelector(".cgcs-sync-overlay");
+  const syncVisual = root.querySelector(".cgcs-sync-visual");
+  const syncTitle = root.querySelector(".cgcs-sync-title");
+  const syncSummary = root.querySelector(".cgcs-sync-summary");
   const syncDetail = root.querySelector(".cgcs-sync-detail");
   const cancelButton = root.querySelector(".cgcs-cancel");
 
@@ -439,6 +444,26 @@
     }, TOAST_STATUS_MS);
   }
 
+  function showSyncOverlay(mode) {
+    const isRecent = mode === "recent";
+    syncVisual.innerHTML = isRecent ? icon.refresh : icon.database;
+    syncTitle.textContent = isRecent ? "Syncing recent chats" : "Rebuilding search index";
+    syncSummary.textContent = isRecent
+      ? "Adding new sidebar chats without rebuilding everything."
+      : "Scanning your sidebar and refreshing the local search index.";
+    syncDetail.textContent = "Preparing your sidebar...";
+    syncOverlay.hidden = false;
+  }
+
+  function updateSyncDetail(message) {
+    syncDetail.textContent = message;
+  }
+
+  function formatConversationCount(count, label = "conversation") {
+    const suffix = count === 1 ? "" : "s";
+    return `${count} ${label}${suffix}`;
+  }
+
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
@@ -459,7 +484,7 @@
     };
 
     try {
-      syncOverlay.hidden = false;
+      showSyncOverlay("full");
       scrollContainer.scrollTop = 0;
       await sleep(500);
       rememberVisibleRecords(scrollContainer, foundByUrl, state.accountId, syncedAt);
@@ -509,7 +534,7 @@
     };
 
     try {
-      syncOverlay.hidden = false;
+      showSyncOverlay("recent");
       scrollContainer.scrollTop = 0;
       await sleep(300);
 
@@ -655,8 +680,7 @@
         lastRecoveryAt = 0;
       }
 
-      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
-      syncDetail.textContent = `Finding conversations... ${foundByUrl.size} indexed. ${idleSeconds}/25s idle`;
+      updateSyncDetail(`Scanning your sidebar. Found ${formatConversationCount(foundByUrl.size)} so far.`);
 
       if (Date.now() - lastNewConversationAt >= CHAT_STALL_RECOVERY_MS && Date.now() - lastRecoveryAt >= CHAT_STALL_RECOVERY_MS) {
         lastRecoveryAt = Date.now();
@@ -695,8 +719,9 @@
       if (result.hitKnownLimit) return true;
       if (foundByUrl.size > beforeRecords) lastNewConversationAt = Date.now();
 
-      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
-      syncDetail.textContent = `Checking recent conversations... ${foundByUrl.size} new, ${consecutiveKnownCount}/${RECENT_KNOWN_STOP_THRESHOLD} known. ${idleSeconds}/5s idle`;
+      updateSyncDetail(foundByUrl.size === 0
+        ? "Looking for recent chats to add."
+        : `Looking for recent chats. Found ${formatConversationCount(foundByUrl.size)} to add.`);
 
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
@@ -731,7 +756,7 @@
       const clickedProjects = await clickVisibleProjectControls(scrollContainer, visitedProjects);
       rememberVisibleRecords(scrollContainer, foundByUrl, accountId, syncedAt);
 
-      syncDetail.textContent = `Checking projects... ${foundByUrl.size} indexed.`;
+      updateSyncDetail(`Checking project chats. Found ${formatConversationCount(foundByUrl.size)} so far.`);
       quietPasses = clickedProjects === 0 && foundByUrl.size === beforeRecords ? quietPasses + 1 : 0;
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
@@ -743,7 +768,7 @@
   }
 
   async function recoverStalledConversationScroll(scrollContainer, isCancelled) {
-    syncDetail.textContent = "Finding conversations... nudging sidebar to load more.";
+    updateSyncDetail("Still scanning. Gently nudging the sidebar to load more chats.");
     const scrollStep = getSidebarScrollStep(scrollContainer);
 
     scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - Math.floor(scrollStep * 0.8));
