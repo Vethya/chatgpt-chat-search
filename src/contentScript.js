@@ -8,13 +8,14 @@
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
 
-  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule] = await Promise.all([
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
     import(chrome.runtime.getURL("src/shared/account.js")),
     import(chrome.runtime.getURL("src/shared/syncIntegrity.js")),
     import(chrome.runtime.getURL("src/shared/importExport.js")),
-    import(chrome.runtime.getURL("src/shared/recentSync.js"))
+    import(chrome.runtime.getURL("src/shared/recentSync.js")),
+    import(chrome.runtime.getURL("src/utils/format.js"))
   ]);
 
   const {
@@ -28,6 +29,7 @@
   const { isSuspiciouslySmallSync } = syncIntegrityModule;
   const { mergeRecentRecords } = importExportModule;
   const { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } = recentSyncModule;
+  const { formatConversationCount, formatNumber } = formatModule;
 
   const state = {
     accountId: null,
@@ -419,7 +421,7 @@
       return;
     }
 
-    status.textContent = `${state.records.length} indexed conversations`;
+    status.textContent = `${formatNumber(state.records.length)} indexed conversations`;
     for (const [index, result] of state.results.entries()) {
       const item = document.createElement("li");
       item.className = index === state.selectedIndex ? "is-selected" : "";
@@ -504,11 +506,6 @@
     syncDetail.textContent = message;
   }
 
-  function formatConversationCount(count, label = "conversation") {
-    const suffix = count === 1 ? "" : "s";
-    return `${count} ${label}${suffix}`;
-  }
-
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
@@ -541,11 +538,11 @@
       const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
       if (records.length === 0) throw new Error("Sync could not find sidebar conversations.");
       if (isSuspiciouslySmallSync(state.records.length, records.length)) {
-        throw new Error(`Sync found only ${records.length} conversations, but the current index has ${state.records.length}.`);
+        throw new Error(`Sync found only ${formatConversationCount(records.length)}, but the current index has ${formatConversationCount(state.records.length)}.`);
       }
       await sendMessage({ type: "records:replace", accountId: state.accountId, records });
       state.records = records;
-      status.textContent = `Synced ${records.length} conversations.`;
+      status.textContent = `Synced ${formatConversationCount(records.length)}.`;
       renderResults();
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
@@ -603,7 +600,7 @@
 
       await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
       state.records = mergeRecentRecords(state.records, records);
-      status.textContent = `Synced ${records.length} recent conversation${records.length === 1 ? "" : "s"}.`;
+      status.textContent = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
       renderResults();
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
@@ -639,7 +636,7 @@
       const result = await sendMessage({ type: "records:import", exportData });
       await refreshAccountAndRecords();
       renderResults();
-      status.textContent = `Imported ${result.imported} records.`;
+      status.textContent = `Imported ${formatConversationCount(result.imported, "record")}.`;
     });
     picker.click();
   }

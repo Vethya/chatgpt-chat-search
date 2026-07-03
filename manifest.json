@@ -23,7 +23,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/shared/*.js"],
+      "resources": ["src/shared/*.js", "src/utils/*.js"],
       "matches": ["https://chatgpt.com/*"]
     }
   ],

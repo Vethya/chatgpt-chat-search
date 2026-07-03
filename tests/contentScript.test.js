@@ -19,6 +19,19 @@ test("content script opens search and renders indexed records", async (t) => {
   assert.deepEqual(harness.renderedTitles(), ["First conversation", "Second conversation"]);
 });
 
+test("content script comma-separates indexed conversation counts", async (t) => {
+  const records = Array.from({ length: 1199 }, (_, index) => ({
+    title: `Conversation ${index + 1}`,
+    url: `https://chatgpt.com/c/${index + 1}`,
+    order: index
+  }));
+  const harness = await loadContentScript(t, { records });
+
+  await harness.click(".cgcs-entry");
+
+  assert.equal(harness.element(".cgcs-status").textContent, "1,199 indexed conversations");
+});
+
 test("content script toggles search from the extension shortcut command", async (t) => {
   const harness = await loadContentScript(t, {
     records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
