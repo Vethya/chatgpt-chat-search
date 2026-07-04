@@ -9,6 +9,7 @@ import {
 import { mergeRecentRecords } from "../shared/importExport.js";
 import { compareRecordOrder } from "../shared/order.js";
 import { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } from "../shared/recentSync.js";
+import { isSearchSurfaceUrl } from "../shared/routes.js";
 import { searchConversations } from "../shared/search.js";
 import { isSuspiciouslySmallSync } from "../shared/syncIntegrity.js";
 import { applyThemeAttribute, CHATGPT_THEME_STORAGE_KEY, detectChatGptTheme } from "../shared/theme.js";
@@ -38,6 +39,7 @@ export async function startContentScript() {
   };
   const icon = createIconRegistry();
   const ui = createContentUi({ icon, shortcutLabel: getShortcutLabel() });
+  updateUiAvailability(ui);
   syncTheme({ root: ui.root });
   const actions = createContentActions({
     detectAccountIdentity,
@@ -87,7 +89,9 @@ export async function startContentScript() {
     ui
   });
 
-  ui.entryButton.addEventListener("click", actions.openSearch);
+  ui.entryButton.addEventListener("click", () => {
+    if (updateUiAvailability(ui)) return actions.openSearch();
+  });
   ui.infoButton.addEventListener("click", ui.openHelp);
   ui.quickSyncButton.addEventListener("click", sync.runRecentConversationSync);
   ui.syncButton.addEventListener("click", sync.runConversationSync);
@@ -124,11 +128,45 @@ export async function startContentScript() {
   });
 
   chrome.runtime.onMessage.addListener((message) => {
+    if (!updateUiAvailability(ui)) return;
     if (message?.type === "ui:openSearch") actions.openSearch();
     if (message?.type === "ui:toggleSearch") actions.toggleSearch();
   });
 
+  watchSearchRoute(() => updateUiAvailability(ui));
   autoIndexer.startAutomaticIndexing();
+}
+
+function updateUiAvailability(ui) {
+  const available = isSearchSurfaceUrl(location.href);
+  ui.root.hidden = !available;
+  if (!available) ui.closeSearch();
+  return available;
+}
+
+function watchSearchRoute(callback, windowRef = window) {
+  let lastHref = location.href;
+  const refresh = () => {
+    if (location.href === lastHref) return;
+    lastHref = location.href;
+    callback();
+  };
+
+  windowRef.addEventListener("popstate", refresh);
+  windowRef.addEventListener("hashchange", refresh);
+
+  const historyRef = windowRef.history;
+  if (!historyRef) return;
+
+  for (const method of ["pushState", "replaceState"]) {
+    const original = historyRef[method];
+    if (typeof original !== "function") continue;
+    historyRef[method] = function patchedHistoryMethod(...args) {
+      const result = original.apply(this, args);
+      windowRef.setTimeout(refresh, 0);
+      return result;
+    };
+  }
 }
 
 function syncTheme({

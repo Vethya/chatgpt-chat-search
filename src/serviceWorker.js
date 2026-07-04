@@ -6,6 +6,7 @@ import {
   sanitizeRecord
 } from "./shared/importExport.js";
 import { compareRecordOrder } from "./shared/order.js";
+import { isSearchSurfaceUrl } from "./shared/routes.js";
 
 const DB_NAME = "chatgpt-conversation-search";
 const DB_VERSION = 1;
@@ -21,7 +22,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 chrome.commands?.onCommand?.addListener(async (command) => {
   if (command !== "open-search") return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id && tab.url?.startsWith("https://chatgpt.com/")) {
+  if (tab?.id && isSearchSurfaceUrl(tab.url)) {
     await chrome.tabs.sendMessage(tab.id, { type: "ui:toggleSearch" }).catch(() => {});
   }
 });

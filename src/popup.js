@@ -1,4 +1,5 @@
 import { applyPopupTheme, CHATGPT_THEME_STORAGE_KEY, normalizeTheme } from "./shared/theme.js";
+import { isSearchSurfaceUrl } from "./shared/routes.js";
 import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
 
 const statusElement = document.querySelector("#status");
@@ -16,7 +17,7 @@ refreshStatus();
 
 async function openSearch() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || !tab.url?.startsWith("https://chatgpt.com/")) {
+  if (!tab?.id || !isSearchSurfaceUrl(tab.url)) {
     await chrome.tabs.create({ url: "https://chatgpt.com/" });
     return;
   }

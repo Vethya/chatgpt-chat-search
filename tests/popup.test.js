@@ -81,6 +81,18 @@ test("open search button messages active ChatGPT tab and closes popup", async (t
   assert.equal(harness.closed, true);
 });
 
+test("open search button opens ChatGPT from non-search ChatGPT routes", async (t) => {
+  const harness = await loadPopup(t, {
+    activeTab: { id: 7, url: "https://chatgpt.com/codex/settings" }
+  });
+
+  await harness.click("#open-search");
+
+  assert.deepEqual(harness.createdTabs, [{ url: "https://chatgpt.com/" }]);
+  assert.deepEqual(harness.sentMessages, []);
+  assert.equal(harness.closed, false);
+});
+
 test("open search button reports when the content script is unavailable", async (t) => {
   const harness = await loadPopup(t, {
     activeTab: { id: 7, url: "https://chatgpt.com/" },

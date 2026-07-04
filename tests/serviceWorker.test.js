@@ -183,6 +183,10 @@ test("command listener opens search only on active ChatGPT tabs", async (t) => {
   await worker.runCommand("open-search");
   await worker.runCommand("other-command");
   assert.deepEqual(worker.sentTabMessages, [{ tabId: 11, message: { type: "ui:toggleSearch" } }]);
+
+  worker.activeTabs = [{ id: 13, url: "https://chatgpt.com/codex/settings" }];
+  await worker.runCommand("open-search");
+  assert.deepEqual(worker.sentTabMessages, [{ tabId: 11, message: { type: "ui:toggleSearch" } }]);
 });
 
 async function loadServiceWorker(t, options = {}) {

@@ -45,6 +45,21 @@ test("content script toggles search from the extension shortcut command", async 
   assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
 });
 
+test("content script hides search UI on non-conversation ChatGPT routes", async (t) => {
+  const harness = await loadContentScript(t, {
+    locationHref: "https://chatgpt.com/codex/settings",
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  assert.equal(harness.rootHidden(), true);
+
+  harness.runtimeMessage({ type: "ui:openSearch" });
+
+  assert.equal(harness.rootHidden(), true);
+  assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
+  assert.deepEqual(harness.sentMessages, []);
+});
+
 test("content script detects and stores the ChatGPT theme on startup", async (t) => {
   const harness = await loadContentScript(t, {
     htmlClass: "dark",
@@ -328,6 +343,9 @@ async function loadContentScript(t, options = {}) {
     rootAttribute(name) {
       return documentRef.documentElement.children.at(-1)?.getAttribute(name);
     },
+    rootHidden() {
+      return documentRef.documentElement.children.at(-1)?.hidden;
+    },
     renderedTitles() {
       return elements.get(".cgcs-results").children.map((item) =>
         item.querySelector(".cgcs-title").textContent
@@ -346,7 +364,7 @@ async function loadContentScript(t, options = {}) {
 
   globalThis.document = documentRef;
   globalThis.location = {
-    href: "https://chatgpt.com/",
+    href: options.locationHref || "https://chatgpt.com/",
     origin: "https://chatgpt.com"
   };
   globalThis.window = {
@@ -365,7 +383,8 @@ async function loadContentScript(t, options = {}) {
       const timer = { id: windowTimeouts.length + 1, callback, delay, cleared: false };
       windowTimeouts.push(timer);
       return timer.id;
-    }
+    },
+    history: {}
   };
   globalThis.MutationObserver = class {
     observe() {}
