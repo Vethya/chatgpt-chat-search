@@ -17,13 +17,22 @@
     {
       "matches": ["https://chatgpt.com/*"],
       "js": ["src/contentScript.js"],
-      "css": ["src/contentStyles.css"],
+      "css": [
+        "src/content/styles/base.css",
+        "src/content/styles/entry.css",
+        "src/content/styles/modal.css",
+        "src/content/styles/results.css",
+        "src/content/styles/help.css",
+        "src/content/styles/sync.css",
+        "src/content/styles/toast.css",
+        "src/content/styles/responsive.css"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/shared/*.js", "src/utils/*.js"],
+      "resources": ["src/content/*.js", "src/shared/*.js", "src/utils/*.js"],
       "matches": ["https://chatgpt.com/*"]
     }
   ],

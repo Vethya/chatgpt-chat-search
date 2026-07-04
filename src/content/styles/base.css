@@ -1,0 +1,87 @@
+#cgcs-root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.cgcs-modal-backdrop,
+.cgcs-help-backdrop,
+.cgcs-sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(6px);
+}
+
+.cgcs-modal-backdrop[hidden],
+.cgcs-help-backdrop[hidden],
+.cgcs-sync-overlay[hidden] {
+  display: none;
+}
+
+.cgcs-help-backdrop {
+  z-index: 2147483002;
+}
+
+.cgcs-small,
+.cgcs-cancel,
+.cgcs-icon-button {
+  border: 1px solid rgba(127, 127, 127, 0.32);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cgcs-small:disabled,
+.cgcs-cancel:disabled,
+.cgcs-icon-button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.cgcs-small.is-busy {
+  background: color-mix(in srgb, CanvasText 7%, transparent);
+}
+
+.cgcs-small,
+.cgcs-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.cgcs-primary {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.cgcs-danger {
+  border-color: color-mix(in srgb, #ef4444 58%, transparent);
+  color: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+}
+
+.cgcs-danger:hover {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+.cgcs-icon-button {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+}
+
+.cgcs-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}

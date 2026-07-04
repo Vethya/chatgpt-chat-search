@@ -1,0 +1,57 @@
+.cgcs-sync-card {
+  width: min(390px, calc(100vw - 32px));
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  padding: 20px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.cgcs-sync-visual {
+  width: 54px;
+  height: 54px;
+  display: inline-grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  border: 1px solid rgba(127, 127, 127, 0.24);
+  border-radius: 999px;
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.cgcs-sync-visual .cgcs-icon {
+  width: 24px;
+  height: 24px;
+  animation: cgcs-spin 1.25s linear infinite;
+}
+
+.cgcs-sync-title {
+  display: block;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.cgcs-sync-summary {
+  margin: 8px auto 14px;
+  max-width: 300px;
+  color: color-mix(in srgb, CanvasText 68%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cgcs-sync-detail {
+  min-height: 20px;
+  margin: 0 0 16px;
+  color: CanvasText;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@keyframes cgcs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
