@@ -1,0 +1,30 @@
+@media (prefers-reduced-motion: reduce) {
+  .cgcs-sync-visual .cgcs-icon {
+    animation: none;
+  }
+
+  .cgcs-toast {
+    animation: none;
+  }
+
+  .cgcs-shortcut {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .cgcs-toolbar {
+    flex-direction: column;
+  }
+
+  .cgcs-sync-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .cgcs-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

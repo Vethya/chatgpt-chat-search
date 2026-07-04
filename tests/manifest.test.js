@@ -20,3 +20,10 @@ test("manifest referenced extension files exist", async () => {
     await access(new URL(`../${path}`, import.meta.url));
   }
 });
+
+test("manifest exposes content modules for dynamic imports", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
+  const resources = manifest.web_accessible_resources.flatMap((entry) => entry.resources);
+
+  assert.ok(resources.includes("src/content/*.js"));
+});

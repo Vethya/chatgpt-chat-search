@@ -1,0 +1,75 @@
+.cgcs-results {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 4px;
+  overflow: auto;
+  margin: 0;
+  padding: 0 18px 0 0;
+  scrollbar-gutter: stable;
+  list-style: none;
+}
+
+.cgcs-modal.is-empty .cgcs-results {
+  display: none;
+}
+
+.cgcs-results li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.cgcs-result-open {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cgcs-results .is-selected .cgcs-result-open,
+.cgcs-result-open:hover,
+.cgcs-delete:hover {
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cgcs-delete {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 58%, transparent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cgcs-delete .cgcs-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.cgcs-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cgcs-meta {
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+  font-size: 12px;
+}
