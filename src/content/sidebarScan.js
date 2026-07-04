@@ -18,7 +18,7 @@ export function createSidebarScanner({
 }) {
   function findSidebarScrollContainer() {
     const conversationLink = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
-      isUsableConversationAnchor(anchor) && anchor.href.includes("/c/")
+      anchor.href.includes("/c/") && isUsableConversationAnchor(anchor)
     );
     const candidates = [
       document.querySelector("nav"),
@@ -200,10 +200,11 @@ export function createSidebarScanner({
 
   async function clickVisibleProjectControls(scrollContainer, visitedProjects) {
     const controls = Array.from(scrollContainer.querySelectorAll("a[href], button, [role='button']"));
+    const labels = getVisibleSectionLabels(scrollContainer);
     let clicked = 0;
 
     for (const control of controls) {
-      if (!isProjectControl(control, scrollContainer)) continue;
+      if (!isProjectControl(control, scrollContainer, labels)) continue;
       const key = control.getAttribute("href") || compactText(control.textContent);
       if (!key || visitedProjects.has(key)) continue;
       visitedProjects.add(key);
@@ -229,10 +230,8 @@ export function createSidebarScanner({
     return isShowMore && !opensMenu && !menuLike;
   }
 
-  function isProjectControl(control, scrollContainer) {
+  function isProjectControl(control, scrollContainer, labels) {
     if (!control || control.closest("#cgcs-root")) return false;
-    if (!isVisible(control)) return false;
-    if (control.closest("a[href*='/c/']")) return false;
 
     const text = compactText(control.textContent);
     const label = compactText(control.getAttribute("aria-label"));
@@ -243,28 +242,30 @@ export function createSidebarScanner({
 
     if (opensMenu || blocked || sidebarAction) return false;
     if (href && !isProjectHref(href)) return false;
-    if (!isInsideProjectsArea(control, scrollContainer) && !isInsidePinnedArea(control, scrollContainer)) return false;
+    if (control.closest("a[href*='/c/']")) return false;
+    if (!isVisible(control)) return false;
+    if (!isInsideProjectsArea(control, scrollContainer, labels) && !isInsidePinnedArea(control, scrollContainer, labels)) return false;
 
     const rect = control.getBoundingClientRect();
     return rect.width >= 48 && rect.height >= 20;
   }
 
-  function isInsideProjectsArea(element, scrollContainer) {
-    return isInsideSectionArea(element, scrollContainer, ["projects"], ["chats"]);
+  function isInsideProjectsArea(element, scrollContainer, labels) {
+    return isInsideSectionArea(element, scrollContainer, ["projects"], ["chats"], labels);
   }
 
-  function isInsidePinnedArea(element, scrollContainer) {
-    return isInsideSectionArea(element, scrollContainer, ["pinned"], ["projects", "chats"]);
+  function isInsidePinnedArea(element, scrollContainer, labels) {
+    return isInsideSectionArea(element, scrollContainer, ["pinned"], ["projects", "chats"], labels);
   }
 
-  function isInsideSectionArea(element, scrollContainer, startSections, endSections) {
+  function isInsideSectionArea(element, scrollContainer, startSections, endSections, labels) {
     const elementTop = element.getBoundingClientRect().top;
-    const labels = getVisibleSectionLabels(scrollContainer);
-    const sectionHeadings = labels.filter((label) => startSections.includes(label.text) && label.top <= elementTop);
+    const activeLabels = labels || getVisibleSectionLabels(scrollContainer);
+    const sectionHeadings = activeLabels.filter((label) => startSections.includes(label.text) && label.top <= elementTop);
     if (sectionHeadings.length === 0) return false;
 
     const latestSectionTop = Math.max(...sectionHeadings.map((label) => label.top));
-    const nextEndHeading = labels.find((label) => endSections.includes(label.text) && label.top > latestSectionTop);
+    const nextEndHeading = activeLabels.find((label) => endSections.includes(label.text) && label.top > latestSectionTop);
     return !nextEndHeading || elementTop < nextEndHeading.top;
   }
 

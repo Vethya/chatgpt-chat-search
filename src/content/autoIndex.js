@@ -92,8 +92,8 @@ export function createAutoIndexer({
 
   function findCurrentConversationTitle(url) {
     const currentAnchor = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
-      isUsableConversationAnchor(anchor) &&
-      normalizeConversationUrl(getAnchorHref(anchor), location.origin) === url
+      normalizeConversationUrl(getAnchorHref(anchor), location.origin) === url &&
+      isUsableConversationAnchor(anchor)
     );
     const anchorTitle = cleanConversationTitle(extractElementTitle(currentAnchor));
     if (anchorTitle) return { title: anchorTitle, source: "anchor" };
