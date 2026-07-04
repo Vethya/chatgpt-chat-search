@@ -141,8 +141,14 @@ test("content script shows a temporary toast after delete", async (t) => {
   harness.runWindowTimeout(2000);
 
   assert.equal(harness.element(".cgcs-status").textContent, "1 indexed conversations");
+  assert.equal(harness.element(".cgcs-toast").classList.contains("is-exiting"), true);
+  assert.equal(harness.element(".cgcs-toast").hidden, false);
+
+  harness.runWindowTimeout(180);
+
   assert.equal(harness.element(".cgcs-toast").textContent, "");
   assert.equal(harness.element(".cgcs-toast").hidden, true);
+  assert.equal(harness.element(".cgcs-toast").classList.contains("is-exiting"), false);
 });
 
 test("content script shows a success toast after clearing the local index", async (t) => {

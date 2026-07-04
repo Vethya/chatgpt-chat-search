@@ -7,6 +7,7 @@
   const AUTO_INDEX_DEBOUNCE_MS = 1200;
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
+  const TOAST_EXIT_MS = 180;
 
   const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule, orderModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
@@ -46,7 +47,8 @@
     conversationUrlChangedAt: 0,
     lastDocumentTitle: "",
     documentTitleChangedAt: 0,
-    toastTimer: null
+    toastTimer: null,
+    toastExitTimer: null
   };
   const shortcutLabel = getShortcutLabel();
 
@@ -482,6 +484,7 @@
 
   function showToast(message, tone = "info") {
     if (state.toastTimer) window.clearTimeout(state.toastTimer);
+    if (state.toastExitTimer) window.clearTimeout(state.toastExitTimer);
     const normalizedMessage = typeof message === "object" ? message.message : message;
     const normalizedTone = typeof message === "object" ? message.tone || tone : tone;
     toast.className = `cgcs-toast is-${normalizedTone}`;
@@ -489,8 +492,13 @@
     toast.hidden = false;
     state.toastTimer = window.setTimeout(() => {
       state.toastTimer = null;
-      toast.hidden = true;
-      toast.textContent = "";
+      toast.classList.toggle("is-exiting", true);
+      state.toastExitTimer = window.setTimeout(() => {
+        state.toastExitTimer = null;
+        toast.hidden = true;
+        toast.textContent = "";
+        toast.classList.toggle("is-exiting", false);
+      }, TOAST_EXIT_MS);
     }, TOAST_STATUS_MS);
   }
 

@@ -424,8 +424,8 @@
 
 .cgcs-toast {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  top: 18px;
+  left: 50%;
   z-index: 2147483002;
   max-width: min(360px, calc(100vw - 36px));
   border: 1px solid rgba(127, 127, 127, 0.28);
@@ -436,6 +436,8 @@
   font-size: 13px;
   line-height: 1.4;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
+  transform: translateX(-50%);
+  animation: cgcs-toast-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .cgcs-toast.is-success {
@@ -456,6 +458,10 @@
 .cgcs-toast.is-error {
   border-color: color-mix(in srgb, #dc2626 48%, transparent);
   background: color-mix(in srgb, #dc2626 14%, Canvas);
+}
+
+.cgcs-toast.is-exiting {
+  animation: cgcs-toast-exit 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .cgcs-toast[hidden] {
@@ -520,8 +526,36 @@
   }
 }
 
+@keyframes cgcs-toast-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes cgcs-toast-exit {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.98);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cgcs-sync-visual .cgcs-icon {
+    animation: none;
+  }
+
+  .cgcs-toast {
     animation: none;
   }
 
