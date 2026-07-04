@@ -1,9 +1,47 @@
+html {
+  --popup-bg: #f6f8fa;
+  --popup-surface: #ffffff;
+  --popup-surface-muted: #f6f8fa;
+  --popup-text: #1f2328;
+  --popup-text-strong: #24292f;
+  --popup-text-muted: #656d76;
+  --popup-border: #d8dee4;
+  --popup-border-soft: #eaeef2;
+  --popup-border-strong: #afb8c1;
+  --popup-accent: #0969da;
+  --popup-accent-bg: #ddf4ff;
+  --popup-warning-bg: #fff8c5;
+  --popup-warning-border: #f0b429;
+  --popup-warning-text: #7d4e00;
+  --popup-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --popup-bg: Canvas;
+  --popup-surface: Canvas;
+  --popup-surface-muted: color-mix(in srgb, CanvasText 7%, transparent);
+  --popup-text: CanvasText;
+  --popup-text-strong: CanvasText;
+  --popup-text-muted: color-mix(in srgb, CanvasText 72%, transparent);
+  --popup-border: rgba(127, 127, 127, 0.28);
+  --popup-border-soft: rgba(127, 127, 127, 0.22);
+  --popup-border-strong: rgba(127, 127, 127, 0.32);
+  --popup-accent: #8ab4f8;
+  --popup-accent-bg: rgba(138, 180, 248, 0.16);
+  --popup-warning-bg: rgba(245, 158, 11, 0.18);
+  --popup-warning-border: #b7791f;
+  --popup-warning-text: #f8d18a;
+  --popup-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
+  color-scheme: dark;
+}
+
 body {
   min-width: 320px;
   margin: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1f2328;
-  background: #f6f8fa;
+  color: var(--popup-text);
+  background: var(--popup-bg);
 }
 
 main {
@@ -23,23 +61,23 @@ h1 {
   display: grid;
   gap: 6px;
   margin: 0;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--popup-border);
   border-radius: 8px;
   padding: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
+  background: var(--popup-surface);
+  box-shadow: var(--popup-shadow);
 }
 
 .status-message {
-  color: #656d76;
+  color: var(--popup-text-muted);
   font-size: 13px;
   line-height: 1.4;
 }
 
 .status-message.is-warning {
-  border-color: #f0b429;
-  background: #fff8c5;
-  color: #7d4e00;
+  border-color: var(--popup-warning-border);
+  background: var(--popup-warning-bg);
+  color: var(--popup-warning-text);
 }
 
 .status-card-single {
@@ -49,7 +87,7 @@ h1 {
 }
 
 .status-count {
-  color: #0969da;
+  color: var(--popup-accent);
   font-size: 30px;
   font-weight: 750;
   line-height: 1;
@@ -57,14 +95,14 @@ h1 {
 }
 
 .status-label {
-  color: #24292f;
+  color: var(--popup-text-strong);
   font-size: 14px;
   font-weight: 600;
 }
 
 .status-sync {
   grid-column: 1 / -1;
-  color: #656d76;
+  color: var(--popup-text-muted);
   font-size: 13px;
 }
 
@@ -72,13 +110,13 @@ h1 {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  color: #24292f;
+  color: var(--popup-text-strong);
   font-size: 13px;
   font-weight: 600;
 }
 
 .status-count-inline {
-  color: #0969da;
+  color: var(--popup-accent);
   font-size: 22px;
   font-weight: 750;
 }
@@ -93,15 +131,15 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid #eaeef2;
+  border: 1px solid var(--popup-border-soft);
   border-radius: 8px;
   padding: 8px 10px;
-  background: #f6f8fa;
+  background: var(--popup-surface-muted);
 }
 
 .account-name {
   overflow: hidden;
-  color: #24292f;
+  color: var(--popup-text-strong);
   font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -110,7 +148,7 @@ h1 {
 
 .account-sync {
   margin-top: 2px;
-  color: #656d76;
+  color: var(--popup-text-muted);
   font-size: 12px;
 }
 
@@ -118,8 +156,8 @@ h1 {
   min-width: 32px;
   border-radius: 999px;
   padding: 3px 8px;
-  background: #ddf4ff;
-  color: #0969da;
+  background: var(--popup-accent-bg);
+  color: var(--popup-accent);
   font-size: 12px;
   font-weight: 700;
   text-align: center;
@@ -131,10 +169,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 0;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--popup-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1f2328;
+  background: var(--popup-surface);
+  color: var(--popup-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -151,11 +189,11 @@ button {
   box-sizing: border-box;
   max-width: 0;
   overflow: hidden;
-  border: 0 solid #d0d7de;
+  border: 0 solid var(--popup-border);
   border-radius: 6px;
   padding: 2px 0;
-  background: #f6f8fa;
-  color: #656d76;
+  background: var(--popup-surface-muted);
+  color: var(--popup-text-muted);
   font: inherit;
   font-size: 11px;
   line-height: 1;
@@ -183,8 +221,8 @@ button {
 }
 
 button:hover {
-  background: #f3f4f6;
-  border-color: #afb8c1;
+  background: var(--popup-surface-muted);
+  border-color: var(--popup-border-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {

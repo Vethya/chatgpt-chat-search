@@ -1,6 +1,42 @@
 #cgcs-root {
-  color-scheme: light dark;
+  --cgcs-surface: #ffffff;
+  --cgcs-surface-muted: #f6f8fa;
+  --cgcs-surface-raised: #ffffff;
+  --cgcs-text: #202123;
+  --cgcs-text-muted: #5f6368;
+  --cgcs-text-subtle: #7a818a;
+  --cgcs-border: #d9dee5;
+  --cgcs-border-soft: #e7ebf0;
+  --cgcs-hover: #eef2f6;
+  --cgcs-active: #e7f0ff;
+  --cgcs-backdrop: rgba(15, 23, 42, 0.2);
+  --cgcs-shadow-strong: 0 24px 80px rgba(15, 23, 42, 0.24);
+  --cgcs-shadow: 0 12px 36px rgba(15, 23, 42, 0.18);
+  --cgcs-danger: #dc2626;
+  --cgcs-danger-bg: #fef2f2;
+  --cgcs-danger-border: #f1a6a6;
+  color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#cgcs-root[data-cgcs-theme="dark"] {
+  --cgcs-surface: Canvas;
+  --cgcs-surface-muted: color-mix(in srgb, CanvasText 7%, transparent);
+  --cgcs-surface-raised: Canvas;
+  --cgcs-text: CanvasText;
+  --cgcs-text-muted: color-mix(in srgb, CanvasText 72%, transparent);
+  --cgcs-text-subtle: color-mix(in srgb, CanvasText 58%, transparent);
+  --cgcs-border: rgba(127, 127, 127, 0.28);
+  --cgcs-border-soft: rgba(127, 127, 127, 0.22);
+  --cgcs-hover: color-mix(in srgb, CanvasText 10%, transparent);
+  --cgcs-active: color-mix(in srgb, CanvasText 10%, transparent);
+  --cgcs-backdrop: rgba(0, 0, 0, 0.18);
+  --cgcs-shadow-strong: 0 24px 80px rgba(0, 0, 0, 0.3);
+  --cgcs-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  --cgcs-danger: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+  --cgcs-danger-bg: color-mix(in srgb, #ef4444 12%, transparent);
+  --cgcs-danger-border: color-mix(in srgb, #ef4444 58%, transparent);
+  color-scheme: dark;
 }
 
 .cgcs-modal-backdrop,
@@ -11,7 +47,7 @@
   z-index: 2147483001;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--cgcs-backdrop);
   backdrop-filter: blur(6px);
 }
 
@@ -28,7 +64,7 @@
 .cgcs-small,
 .cgcs-cancel,
 .cgcs-icon-button {
-  border: 1px solid rgba(127, 127, 127, 0.32);
+  border: 1px solid var(--cgcs-border);
   border-radius: 8px;
   background: transparent;
   color: inherit;
@@ -44,7 +80,7 @@
 }
 
 .cgcs-small.is-busy {
-  background: color-mix(in srgb, CanvasText 7%, transparent);
+  background: var(--cgcs-hover);
 }
 
 .cgcs-small,
@@ -59,16 +95,16 @@
 }
 
 .cgcs-primary {
-  background: color-mix(in srgb, CanvasText 8%, transparent);
+  background: var(--cgcs-surface-muted);
 }
 
 .cgcs-danger {
-  border-color: color-mix(in srgb, #ef4444 58%, transparent);
-  color: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+  border-color: var(--cgcs-danger-border);
+  color: var(--cgcs-danger);
 }
 
 .cgcs-danger:hover {
-  background: color-mix(in srgb, #ef4444 12%, transparent);
+  background: var(--cgcs-danger-bg);
 }
 
 .cgcs-icon-button {

@@ -1,3 +1,4 @@
+import { applyPopupTheme, CHATGPT_THEME_STORAGE_KEY, normalizeTheme } from "./shared/theme.js";
 import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
 
 const statusElement = document.querySelector("#status");
@@ -5,6 +6,7 @@ const openSearchButton = document.querySelector("#open-search");
 const openChatGptButton = document.querySelector("#open-chatgpt");
 const shortcutLabelElement = document.querySelector("#shortcut-label");
 
+setupTheme();
 shortcutLabelElement.textContent = getShortcutLabel();
 
 openSearchButton.addEventListener("click", openSearch);
@@ -157,4 +159,17 @@ function sendRuntimeMessage(message) {
       resolve(response.data);
     });
   });
+}
+
+function setupTheme() {
+  applyPopupTheme(document, null, window);
+
+  try {
+    chrome.storage?.local?.get?.({ [CHATGPT_THEME_STORAGE_KEY]: null }, (values) => {
+      const theme = normalizeTheme(values?.[CHATGPT_THEME_STORAGE_KEY]);
+      if (theme) applyPopupTheme(document, theme, window);
+    });
+  } catch {
+    return;
+  }
 }

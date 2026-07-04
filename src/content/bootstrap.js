@@ -11,6 +11,7 @@ import { compareRecordOrder } from "../shared/order.js";
 import { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } from "../shared/recentSync.js";
 import { searchConversations } from "../shared/search.js";
 import { isSuspiciouslySmallSync } from "../shared/syncIntegrity.js";
+import { applyThemeAttribute, CHATGPT_THEME_STORAGE_KEY, detectChatGptTheme } from "../shared/theme.js";
 import { formatConversationCount, formatNumber, getShortcutLabel } from "../utils/format.js";
 import { createContentActions } from "./actions.js";
 import { createAutoIndexer } from "./autoIndex.js";
@@ -37,6 +38,7 @@ export async function startContentScript() {
   };
   const icon = createIconRegistry();
   const ui = createContentUi({ icon, shortcutLabel: getShortcutLabel() });
+  syncTheme({ root: ui.root });
   const actions = createContentActions({
     detectAccountIdentity,
     formatConversationCount,
@@ -127,4 +129,21 @@ export async function startContentScript() {
   });
 
   autoIndexer.startAutomaticIndexing();
+}
+
+function syncTheme({
+  documentRef = document,
+  root,
+  storageArea = chrome.storage?.local,
+  windowRef = window
+} = {}) {
+  const detectedTheme = detectChatGptTheme(documentRef, windowRef);
+  if (!detectedTheme) return;
+
+  const theme = applyThemeAttribute(root, detectedTheme);
+  try {
+    storageArea?.set?.({ [CHATGPT_THEME_STORAGE_KEY]: theme });
+  } catch {
+    // The content UI should still theme correctly if extension storage is unavailable.
+  }
 }

@@ -40,7 +40,7 @@
 .cgcs-results .is-selected .cgcs-result-open,
 .cgcs-result-open:hover,
 .cgcs-delete:hover {
-  background: color-mix(in srgb, CanvasText 10%, transparent);
+  background: var(--cgcs-hover);
 }
 
 .cgcs-delete {
@@ -53,7 +53,7 @@
   border-radius: 6px;
   padding: 0;
   background: transparent;
-  color: color-mix(in srgb, CanvasText 58%, transparent);
+  color: var(--cgcs-text-subtle);
   font: inherit;
   cursor: pointer;
 }
@@ -70,6 +70,6 @@
 }
 
 .cgcs-meta {
-  color: color-mix(in srgb, CanvasText 55%, transparent);
+  color: var(--cgcs-text-subtle);
   font-size: 12px;
 }

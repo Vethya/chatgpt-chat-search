@@ -43,6 +43,14 @@ test("popup shows multiple account statuses separately", async (t) => {
   assert.match(harness.element("#status").innerHTML, /Last synced yesterday/);
 });
 
+test("popup applies the last detected ChatGPT theme", async (t) => {
+  const harness = await loadPopup(t, {
+    storedTheme: "dark"
+  });
+
+  assert.equal(harness.documentTheme(), "dark");
+});
+
 test("open ChatGPT button opens chatgpt.com", async (t) => {
   const harness = await loadPopup(t);
 
@@ -92,6 +100,7 @@ async function loadPopup(t, options = {}) {
   const previousChrome = globalThis.chrome;
   const previousDateNow = Date.now;
   const elements = new Map();
+  const documentElement = createDocumentElement();
   const createdTabs = [];
   const sentMessages = [];
   const runtimeMessages = [];
@@ -101,17 +110,24 @@ async function loadPopup(t, options = {}) {
     runtimeMessages,
     closed: false,
     element,
+    documentTheme() {
+      return documentElement.getAttribute("data-theme");
+    },
     async click(selector) {
       await element(selector).listeners.get("click")();
     }
   };
 
   globalThis.document = {
+    documentElement,
     querySelector(selector) {
       return element(selector);
     }
   };
   globalThis.window = {
+    matchMedia(query) {
+      return { matches: query === "(prefers-color-scheme: light)" };
+    },
     close() {
       harness.closed = true;
     }
@@ -122,6 +138,16 @@ async function loadPopup(t, options = {}) {
       sendMessage(message, callback) {
         runtimeMessages.push(message);
         callback({ ok: true, data: options.accountStatuses || [] });
+      }
+    },
+    storage: {
+      local: {
+        get(defaults, callback) {
+          callback({
+            ...defaults,
+            chatgptTheme: options.storedTheme ?? defaults.chatgptTheme
+          });
+        }
       }
     },
     tabs: {
@@ -166,6 +192,20 @@ async function loadPopup(t, options = {}) {
     }
     return elements.get(selector);
   }
+}
+
+function createDocumentElement() {
+  const attributes = new Map();
+  return {
+    dataset: {},
+    getAttribute(name) {
+      return attributes.get(name) || null;
+    },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+      if (name === "data-theme") this.dataset.theme = String(value);
+    }
+  };
 }
 
 async function waitFor(predicate) {
