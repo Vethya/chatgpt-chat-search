@@ -7,6 +7,8 @@
   const AUTO_INDEX_DEBOUNCE_MS = 1200;
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
+  const TOAST_EXIT_MS = 180;
+  const MSG_MISSING_ACCOUNT = "Can't identify this ChatGPT account. Open the account menu, then try again.";
 
   const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule, orderModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
@@ -46,20 +48,31 @@
     conversationUrlChangedAt: 0,
     lastDocumentTitle: "",
     documentTitleChangedAt: 0,
-    toastTimer: null
+    toastTimer: null,
+    toastExitTimer: null
   };
   const shortcutLabel = getShortcutLabel();
 
   const icon = {
+    alertTriangle: svg(`<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>`),
+    checkCircle: svg(`<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>`),
     database: svg(`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`),
     download: svg(`<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
     help: svg(`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>`),
+    infoCircle: svg(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`),
     refresh: svg(`<path d="M3 12a9 9 0 0 1 14.9-6.8L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-14.9 6.8L3 16"/><path d="M3 21v-5h5"/>`),
     search: svg(`<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`, "cgcs-entry-icon cgcs-icon"),
     sparkles: svg(`<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>`),
     trash: svg(`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>`),
     upload: svg(`<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
-    x: svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
+    x: svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`),
+    xCircle: svg(`<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>`)
+  };
+  const toastIcons = {
+    error: icon.xCircle,
+    info: icon.infoCircle,
+    success: icon.checkCircle,
+    warning: icon.alertTriangle
   };
 
   const root = document.createElement("div");
@@ -160,7 +173,10 @@
         <button class="cgcs-cancel" type="button">${icon.x}<span>Cancel</span></button>
       </div>
     </div>
-    <div class="cgcs-toast" role="status" hidden></div>
+    <div class="cgcs-toast" role="status" hidden>
+      <span class="cgcs-toast-icon" aria-hidden="true"></span>
+      <span class="cgcs-toast-message"></span>
+    </div>
   `;
   document.documentElement.append(root);
 
@@ -176,6 +192,8 @@
   const status = root.querySelector(".cgcs-status");
   const emptyState = root.querySelector(".cgcs-empty-state");
   const toast = root.querySelector(".cgcs-toast");
+  const toastIcon = root.querySelector(".cgcs-toast-icon");
+  const toastMessage = root.querySelector(".cgcs-toast-message");
   const resultsList = root.querySelector(".cgcs-results");
   const infoButton = root.querySelector(".cgcs-info");
   const quickSyncButton = root.querySelector(".cgcs-quick-sync");
@@ -238,6 +256,9 @@
   async function openSearch() {
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
+    if (!state.accountId) {
+      showToast(MSG_MISSING_ACCOUNT, "warning");
+    }
     updateSearchClearButton();
     renderResults();
     input.focus();
@@ -405,7 +426,7 @@
     emptyState.textContent = "";
 
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = MSG_MISSING_ACCOUNT;
       return;
     }
     if (state.records.length === 0) {
@@ -477,14 +498,23 @@
       : "That conversation was already absent from the local index.");
   }
 
-  function showToast(message) {
+  function showToast(message, tone = "info") {
     if (state.toastTimer) window.clearTimeout(state.toastTimer);
-    toast.textContent = message;
+    if (state.toastExitTimer) window.clearTimeout(state.toastExitTimer);
+    toast.className = `cgcs-toast is-${tone}`;
+    toastIcon.innerHTML = toastIcons[tone] || toastIcons.info;
+    toastMessage.textContent = message;
     toast.hidden = false;
     state.toastTimer = window.setTimeout(() => {
       state.toastTimer = null;
-      toast.hidden = true;
-      toast.textContent = "";
+      toast.classList.toggle("is-exiting", true);
+      state.toastExitTimer = window.setTimeout(() => {
+        state.toastExitTimer = null;
+        toast.hidden = true;
+        toastIcon.textContent = "";
+        toastMessage.textContent = "";
+        toast.classList.toggle("is-exiting", false);
+      }, TOAST_EXIT_MS);
     }, TOAST_STATUS_MS);
   }
 
@@ -503,15 +533,25 @@
     syncDetail.textContent = message;
   }
 
+  function setActionButtonsDisabled(disabled) {
+    for (const button of [quickSyncButton, syncButton, importButton, exportButton, resetButton]) {
+      button.disabled = disabled;
+      button.classList.toggle("is-busy", disabled);
+    }
+  }
+
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try sync again.";
+      const message = "Open the ChatGPT sidebar, then try sync again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
 
@@ -523,6 +563,7 @@
     };
 
     try {
+      setActionButtonsDisabled(true);
       showSyncOverlay("full");
       scrollContainer.scrollTop = 0;
       await sleep(500);
@@ -539,27 +580,35 @@
       }
       await sendMessage({ type: "records:replace", accountId: state.accountId, records });
       state.records = records;
-      status.textContent = `Synced ${formatConversationCount(records.length)}.`;
+      const message = `Synced ${formatConversationCount(records.length)}.`;
+      status.textContent = message;
       renderResults();
+      showToast(message, "success");
     } catch (error) {
-      status.textContent = error.message === "Sync canceled."
+      const message = error.message === "Sync canceled."
         ? "Sync canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
+      status.textContent = message;
+      showToast(message, error.message === "Sync canceled." ? "warning" : "error");
     } finally {
       syncOverlay.hidden = true;
       state.syncCancel = null;
+      setActionButtonsDisabled(false);
     }
   }
 
   async function runRecentConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try Sync recent again.";
+      const message = "Open the ChatGPT sidebar, then try Sync recent again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
 
@@ -573,6 +622,7 @@
     };
 
     try {
+      setActionButtonsDisabled(true);
       showSyncOverlay("recent");
       scrollContainer.scrollTop = 0;
       await sleep(300);
@@ -588,37 +638,52 @@
       const records = [...foundByUrl.values()].sort(compareRecordOrder);
 
       if (records.length === 0) {
-        status.textContent = hitKnownRecord
+        const message = hitKnownRecord
           ? "No new recent conversations found."
           : "No recent conversations found before quick sync stopped.";
+        status.textContent = message;
         renderResults();
+        showToast(message, "info");
         return;
       }
 
       await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
       state.records = mergeRecentRecords(state.records, records);
-      status.textContent = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
+      const message = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
+      status.textContent = message;
       renderResults();
+      showToast(message, "success");
     } catch (error) {
-      status.textContent = error.message === "Sync canceled."
+      const message = error.message === "Sync canceled."
         ? "Sync recent canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
+      status.textContent = message;
+      showToast(message, error.message === "Sync canceled." ? "warning" : "error");
     } finally {
       syncOverlay.hidden = true;
       state.syncCancel = null;
+      setActionButtonsDisabled(false);
     }
   }
 
   async function exportIndex() {
     if (!(await ensureAccount())) return;
-    const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `chatgpt-conversation-index-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    setActionButtonsDisabled(true);
+    try {
+      const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `chatgpt-conversation-index-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast("Export downloaded.", "success");
+    } catch (error) {
+      showToast(error.message || "Export failed.", "error");
+    } finally {
+      setActionButtonsDisabled(false);
+    }
   }
 
   async function importIndex() {
@@ -628,12 +693,23 @@
     picker.addEventListener("change", async () => {
       const file = picker.files?.[0];
       if (!file) return;
-      const text = await file.text();
-      const exportData = JSON.parse(text);
-      const result = await sendMessage({ type: "records:import", exportData });
-      await refreshAccountAndRecords();
-      renderResults();
-      status.textContent = `Imported ${formatConversationCount(result.imported, "record")}.`;
+      setActionButtonsDisabled(true);
+      try {
+        const text = await file.text();
+        const exportData = JSON.parse(text);
+        const result = await sendMessage({ type: "records:import", exportData });
+        await refreshAccountAndRecords();
+        renderResults();
+        const message = `Imported ${formatConversationCount(result.imported, "record")}.`;
+        status.textContent = message;
+        showToast(message, "success");
+      } catch (error) {
+        const message = error.message || "Import failed.";
+        status.textContent = message;
+        showToast(message, "error");
+      } finally {
+        setActionButtonsDisabled(false);
+      }
     });
     picker.click();
   }
@@ -641,15 +717,24 @@
   async function resetIndex() {
     if (!(await ensureAccount())) return;
     if (!confirm("Clear the local conversation index for this ChatGPT account?")) return;
-    await sendMessage({ type: "records:reset", accountId: state.accountId });
-    state.records = [];
-    renderResults();
+    setActionButtonsDisabled(true);
+    try {
+      await sendMessage({ type: "records:reset", accountId: state.accountId });
+      state.records = [];
+      renderResults();
+      showToast("Local index cleared.", "success");
+    } catch (error) {
+      showToast(error.message || "Clear index failed.", "error");
+    } finally {
+      setActionButtonsDisabled(false);
+    }
   }
 
   async function ensureAccount() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return false;
     }
     return true;

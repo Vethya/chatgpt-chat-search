@@ -23,7 +23,7 @@ async function openSearch() {
     await chrome.tabs.sendMessage(tab.id, { type: "ui:openSearch" });
     window.close();
   } catch {
-    renderMessage("Refresh the ChatGPT tab, then try again.");
+    renderMessage("Refresh the ChatGPT tab, then try again.", "warning");
   }
 }
 
@@ -76,8 +76,8 @@ function renderAccountStatuses(statuses) {
   `;
 }
 
-function renderMessage(message) {
-  statusElement.className = "status-card status-message";
+function renderMessage(message, tone = "info") {
+  statusElement.className = `status-card status-message is-${tone}`;
   statusElement.title = "";
   statusElement.textContent = message;
 }
