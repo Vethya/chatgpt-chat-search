@@ -6,7 +6,7 @@ export function normalizeTheme(value) {
 }
 
 export function detectChatGptTheme(documentRef = globalThis.document, windowRef = globalThis.window) {
-  const documentElement = documentRef.documentElement;
+  const documentElement = documentRef?.documentElement;
   const explicitTheme = normalizeTheme(documentElement?.getAttribute?.("data-theme"))
     || normalizeTheme(documentElement?.dataset?.theme)
     || detectThemeFromClassList(documentElement?.classList);
@@ -27,13 +27,13 @@ export function applyPopupTheme(documentRef, theme, windowRef = globalThis.windo
     || getPreferredTheme(documentRef)
     || getSystemTheme(windowRef)
     || DEFAULT_THEME;
-  documentRef.documentElement?.setAttribute?.("data-theme", normalizedTheme);
+  documentRef?.documentElement?.setAttribute?.("data-theme", normalizedTheme);
   return normalizedTheme;
 }
 
 export function getPreferredTheme(documentRef = globalThis.document) {
-  return normalizeTheme(documentRef.documentElement?.getAttribute?.("data-theme"))
-    || normalizeTheme(documentRef.documentElement?.dataset?.theme);
+  return normalizeTheme(documentRef?.documentElement?.getAttribute?.("data-theme"))
+    || normalizeTheme(documentRef?.documentElement?.dataset?.theme);
 }
 
 export function getSystemTheme(windowRef = globalThis.window) {

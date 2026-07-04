@@ -166,6 +166,7 @@ function setupTheme() {
 
   try {
     chrome.storage?.local?.get?.({ [CHATGPT_THEME_STORAGE_KEY]: null }, (values) => {
+      if (chrome.runtime?.lastError) return;
       const theme = normalizeTheme(values?.[CHATGPT_THEME_STORAGE_KEY]);
       if (theme) applyPopupTheme(document, theme, window);
     });
