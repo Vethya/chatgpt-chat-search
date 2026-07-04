@@ -10,7 +10,7 @@
   z-index: 2147483000;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   border: 1px solid rgba(127, 127, 127, 0.28);
   border-radius: 8px;
   padding: 8px 10px;
@@ -26,15 +26,17 @@
   width: 16px;
   height: 16px;
   flex: none;
+  margin-right: 6px;
 }
 
 .cgcs-shortcut {
+  box-sizing: border-box;
   max-width: 0;
   display: inline-flex;
   align-items: center;
   min-height: 20px;
   overflow: hidden;
-  border: 1px solid rgba(127, 127, 127, 0.24);
+  border: 0 solid rgba(127, 127, 127, 0.24);
   border-radius: 6px;
   padding: 2px 0;
   background: color-mix(in srgb, CanvasText 7%, transparent);
@@ -42,10 +44,13 @@
   font: inherit;
   font-size: 11px;
   line-height: 1;
+  margin-left: 0;
   opacity: 0;
   transform: translateX(-4px);
   transition:
     max-width 180ms ease,
+    border-width 180ms ease,
+    margin 180ms ease,
     opacity 140ms ease,
     padding 180ms ease,
     transform 180ms ease;
@@ -55,6 +60,8 @@
 .cgcs-entry:hover .cgcs-shortcut,
 .cgcs-entry:focus-visible .cgcs-shortcut {
   max-width: 88px;
+  border-width: 1px;
+  margin-left: 6px;
   padding-inline: 6px;
   opacity: 1;
   transform: translateX(0);
