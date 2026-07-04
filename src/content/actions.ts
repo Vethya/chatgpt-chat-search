@@ -1,4 +1,19 @@
+import type { AccountId, ConversationRecord, ConversationRecordInput, SearchResult } from "../types.js";
+import type { ContentState, ContentUi, IconRegistry, SendMessage } from "./types.js";
+
 export const MSG_MISSING_ACCOUNT = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+
+interface CreateContentActionsOptions {
+  detectAccountIdentity: (documentRef: Document) => Promise<AccountId | null>;
+  formatConversationCount: (count: number, label?: string) => string;
+  formatNumber: (value: number) => string;
+  icon: IconRegistry;
+  mergeRecentRecords: (existingRecords: ConversationRecordInput[], incomingRecords: ConversationRecordInput[]) => ConversationRecord[];
+  searchConversations: (records: ConversationRecord[], query: string, limit?: number) => SearchResult[];
+  sendMessage: SendMessage;
+  state: ContentState;
+  ui: ContentUi;
+}
 
 export function createContentActions({
   detectAccountIdentity,
@@ -10,7 +25,7 @@ export function createContentActions({
   sendMessage,
   state,
   ui
-}) {
+}: CreateContentActionsOptions) {
   async function openSearch() {
     ui.modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
@@ -83,15 +98,15 @@ export function createContentActions({
         </button>
         <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">${icon.trash}</button>
       `;
-      item.querySelector(".cgcs-title").textContent = result.record.title;
-      item.querySelector(".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
-      item.querySelector(".cgcs-result-open").addEventListener("click", () => selectResult(index));
-      item.querySelector(".cgcs-delete").addEventListener("click", () => deleteResult(index));
+      requiredElement<HTMLElement>(item, ".cgcs-title").textContent = result.record.title;
+      requiredElement<HTMLElement>(item, ".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
+      requiredElement<HTMLButtonElement>(item, ".cgcs-result-open").addEventListener("click", () => selectResult(index));
+      requiredElement<HTMLButtonElement>(item, ".cgcs-delete").addEventListener("click", () => deleteResult(index));
       ui.resultsList.append(item);
     }
   }
 
-  function handleSearchKeydown(event) {
+  function handleSearchKeydown(event: KeyboardEvent) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
       state.selectedIndex = Math.min(state.selectedIndex + 1, state.results.length - 1);
@@ -106,13 +121,13 @@ export function createContentActions({
     }
   }
 
-  function selectResult(index) {
+  function selectResult(index: number) {
     const result = state.results[index];
     if (!result) return;
     window.location.assign(result.record.url);
   }
 
-  async function deleteResult(index) {
+  async function deleteResult(index: number) {
     const result = state.results[index];
     if (!result || !state.accountId) return;
     if (!confirm(`Remove "${result.record.title}" from the local index?`)) return;
@@ -133,9 +148,11 @@ export function createContentActions({
 
   async function exportIndex() {
     if (!(await ensureAccount())) return;
+    const accountId = state.accountId;
+    if (!accountId) return;
     ui.setActionButtonsDisabled(true);
     try {
-      const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
+      const exportData = await sendMessage({ type: "records:export", accountId });
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -145,7 +162,7 @@ export function createContentActions({
       URL.revokeObjectURL(url);
       ui.showToast("Export downloaded.", "success");
     } catch (error) {
-      ui.showToast(error.message || "Export failed.", "error");
+      ui.showToast(getErrorMessage(error, "Export failed."), "error");
     } finally {
       ui.setActionButtonsDisabled(false);
     }
@@ -169,7 +186,7 @@ export function createContentActions({
         ui.status.textContent = message;
         ui.showToast(message, "success");
       } catch (error) {
-        const message = error.message || "Import failed.";
+        const message = getErrorMessage(error, "Import failed.");
         ui.status.textContent = message;
         ui.showToast(message, "error");
       } finally {
@@ -181,15 +198,17 @@ export function createContentActions({
 
   async function resetIndex() {
     if (!(await ensureAccount())) return;
+    const accountId = state.accountId;
+    if (!accountId) return;
     if (!confirm("Clear the local conversation index for this ChatGPT account?")) return;
     ui.setActionButtonsDisabled(true);
     try {
-      await sendMessage({ type: "records:reset", accountId: state.accountId });
+      await sendMessage({ type: "records:reset", accountId });
       state.records = [];
       renderResults();
       ui.showToast("Local index cleared.", "success");
     } catch (error) {
-      ui.showToast(error.message || "Clear index failed.", "error");
+      ui.showToast(getErrorMessage(error, "Clear index failed."), "error");
     } finally {
       ui.setActionButtonsDisabled(false);
     }
@@ -219,4 +238,14 @@ export function createContentActions({
     selectResult,
     toggleSearch
   };
+}
+
+function requiredElement<T extends Element>(root: ParentNode, selector: string): T {
+  const element = root.querySelector(selector);
+  if (!element) throw new Error(`Missing result element: ${selector}`);
+  return element as T;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }

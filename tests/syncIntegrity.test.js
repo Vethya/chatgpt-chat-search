@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isSuspiciouslySmallSync } from "../src/shared/syncIntegrity.js";
+import { isSuspiciouslySmallSync } from "../dist/extension/src/shared/syncIntegrity.js";
 
 test("flags a large unexpected sync drop", () => {
   assert.equal(isSuspiciouslySmallSync(420, 29), true);

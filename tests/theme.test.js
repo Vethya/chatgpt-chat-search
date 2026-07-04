@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { detectChatGptTheme } from "../src/shared/theme.js";
+import { detectChatGptTheme } from "../dist/extension/src/shared/theme.js";
 
 test("detects explicit ChatGPT theme classes", () => {
   assert.equal(detectChatGptTheme(fakeDocument({ className: "dark" })), "dark");

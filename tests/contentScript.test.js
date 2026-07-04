@@ -378,7 +378,7 @@ async function loadContentScript(t, options = {}) {
     runtime: {
       lastError: null,
       getURL(path) {
-        return new URL(`../${path}`, import.meta.url).href;
+        return new URL(`../dist/extension/${path}`, import.meta.url).href;
       },
       onMessage: {
         addListener(listener) {
@@ -416,7 +416,7 @@ async function loadContentScript(t, options = {}) {
     globalThis.confirm = previousConfirm;
   });
 
-  await import(new URL(`../src/contentScript.js?content-script-test=${importCounter++}`, import.meta.url));
+  await import(new URL(`../dist/extension/src/contentScript.js?content-script-test=${importCounter++}`, import.meta.url));
   await waitFor(() => messageListeners.length === 1);
   return harness;
 }

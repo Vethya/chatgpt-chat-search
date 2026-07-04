@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareRecordOrder } from "../src/shared/order.js";
+import { compareRecordOrder } from "../dist/extension/src/shared/order.js";
 
 test("compares records by order with a configurable fallback", () => {
   const records = [

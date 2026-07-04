@@ -39,18 +39,22 @@ The extension stores its index in your browser. It does not send your conversati
 ## Load From Source
 
 1. Clone this repository.
-2. Open `chrome://extensions`.
-3. Enable Developer mode.
-4. Choose "Load unpacked".
-5. Select this repository folder.
-6. Open `https://chatgpt.com/`.
-7. Click the extension's Search button or press `Cmd+Shift+.` / `Ctrl+Shift+.`, then run Sync.
+2. Run `npm install`.
+3. Run `npm run build`.
+4. Open `chrome://extensions`.
+5. Enable Developer mode.
+6. Choose "Load unpacked".
+7. Select `dist/extension`.
+8. Open `https://chatgpt.com/`.
+9. Click the extension's Search button or press `Cmd+Shift+.` / `Ctrl+Shift+.`, then run Sync.
 
 ## Development
 
-Run the test suite and syntax checks:
+Build, typecheck, and test:
 
 ```sh
+npm run build
+npm run typecheck
 npm test
 npm run check
 ```

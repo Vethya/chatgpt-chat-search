@@ -1,6 +1,22 @@
 const AUTO_INDEX_DEBOUNCE_MS = 1200;
 const AUTO_INDEX_POLL_MS = 2500;
 
+import type { AccountId, ConversationRecord, ConversationRecordInput } from "../types.js";
+import type { ContentState, ContentUi, CurrentConversationTitle, SendMessage } from "./types.js";
+
+interface CreateAutoIndexerOptions {
+  detectAccountIdentity: (documentRef: Document) => Promise<AccountId | null>;
+  extractConversationAnchorTitle: (anchor: Element | null | undefined) => string | undefined;
+  getAnchorHref: (anchor: Element | null | undefined) => string | undefined;
+  isNonConversationTitle: (title: unknown) => boolean;
+  mergeRecentRecords: (existingRecords: ConversationRecordInput[], incomingRecords: ConversationRecordInput[]) => ConversationRecord[];
+  normalizeConversationUrl: (href: unknown, origin?: string) => string | null;
+  renderResults: () => void;
+  sendMessage: SendMessage;
+  state: ContentState;
+  ui: ContentUi;
+}
+
 export function createAutoIndexer({
   detectAccountIdentity,
   extractConversationAnchorTitle,
@@ -12,7 +28,7 @@ export function createAutoIndexer({
   sendMessage,
   state,
   ui
-}) {
+}: CreateAutoIndexerOptions): { startAutomaticIndexing: () => void } {
   function startAutomaticIndexing() {
     const observer = new MutationObserver(() => scheduleAutoIndexCurrentConversation());
     observer.observe(document.documentElement, {
@@ -30,7 +46,7 @@ export function createAutoIndexer({
   }
 
   function scheduleAutoIndexCurrentConversation(delay = AUTO_INDEX_DEBOUNCE_MS) {
-    window.clearTimeout(state.autoIndexTimer);
+    if (state.autoIndexTimer !== null) window.clearTimeout(state.autoIndexTimer);
     state.autoIndexTimer = window.setTimeout(() => {
       state.autoIndexTimer = null;
       autoIndexCurrentConversation().catch(() => {});
@@ -56,7 +72,7 @@ export function createAutoIndexer({
     }
   }
 
-  async function buildCurrentConversationRecord() {
+  async function buildCurrentConversationRecord(): Promise<ConversationRecord | null> {
     const url = normalizeConversationUrl(location.href, location.origin);
     if (!url) return null;
     updateObservedConversationState(url);
@@ -77,7 +93,7 @@ export function createAutoIndexer({
     };
   }
 
-  function updateObservedConversationState(url) {
+  function updateObservedConversationState(url: string): void {
     const now = Date.now();
     if (state.currentConversationUrl !== url) {
       state.currentConversationUrl = url;
@@ -90,7 +106,7 @@ export function createAutoIndexer({
     }
   }
 
-  function findCurrentConversationTitle(url) {
+  function findCurrentConversationTitle(url: string): CurrentConversationTitle | null {
     const currentAnchor = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
       normalizeConversationUrl(getAnchorHref(anchor), location.origin) === url &&
       isUsableConversationAnchor(anchor)
@@ -104,12 +120,12 @@ export function createAutoIndexer({
     return null;
   }
 
-  function extractElementTitle(element) {
+  function extractElementTitle(element: Element | null | undefined): string {
     if (!element) return "";
     return extractConversationAnchorTitle(element) || "";
   }
 
-  function cleanConversationTitle(value) {
+  function cleanConversationTitle(value: unknown): string {
     const title = String(value || "")
       .replace(/\s+/g, " ")
       .replace(/^ChatGPT\s*[-|]\s*/i, "")
@@ -119,7 +135,7 @@ export function createAutoIndexer({
     return title;
   }
 
-  function isUsableConversationAnchor(anchor) {
+  function isUsableConversationAnchor(anchor: Element | null | undefined): boolean {
     if (!anchor || anchor.closest("#cgcs-root")) return false;
     if (!isVisible(anchor)) return false;
     if (!normalizeConversationUrl(getAnchorHref(anchor), location.origin)) return false;
@@ -131,7 +147,7 @@ export function createAutoIndexer({
   };
 }
 
-function isVisible(element) {
+function isVisible(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0;
 }

@@ -5,8 +5,14 @@
   "type": "module",
   "description": "Local Chromium extension for fast ChatGPT conversation title search.",
   "scripts": {
-    "test": "node --test tests/*.test.js",
-    "check": "for file in src/contentScript.js src/content/*.js src/serviceWorker.js src/popup.js; do node --check \"$file\"; done",
+    "build": "node scripts/build-extension.mjs && tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.js",
+    "check": "npm run typecheck && npm test",
     "package": "./scripts/package-extension.sh"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.2",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { detectAccountIdentity } from "../src/shared/account.js";
+import { detectAccountIdentity } from "../dist/extension/src/shared/account.js";
 
 test("detects stable account id from attributes", async () => {
   const documentRef = {

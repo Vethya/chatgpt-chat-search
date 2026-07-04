@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
 test("manifest uses v3 and limits host access to chatgpt.com", async () => {
-  const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
+  const manifest = JSON.parse(await readFile(new URL("../dist/extension/manifest.json", import.meta.url), "utf8"));
   assert.equal(manifest.manifest_version, 3);
   assert.deepEqual(manifest.host_permissions, ["https://chatgpt.com/*"]);
 });
 
 test("manifest referenced extension files exist", async () => {
-  const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
+  const manifest = JSON.parse(await readFile(new URL("../dist/extension/manifest.json", import.meta.url), "utf8"));
   const paths = [
     manifest.background.service_worker,
     manifest.action.default_popup,
@@ -17,12 +17,12 @@ test("manifest referenced extension files exist", async () => {
   ];
 
   for (const path of paths) {
-    await access(new URL(`../${path}`, import.meta.url));
+    await access(new URL(`../dist/extension/${path}`, import.meta.url));
   }
 });
 
 test("manifest exposes content modules for dynamic imports", async () => {
-  const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
+  const manifest = JSON.parse(await readFile(new URL("../dist/extension/manifest.json", import.meta.url), "utf8"));
   const resources = manifest.web_accessible_resources.flatMap((entry) => entry.resources);
 
   assert.ok(resources.includes("src/content/*.js"));

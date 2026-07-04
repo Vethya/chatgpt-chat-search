@@ -1,4 +1,54 @@
 import { MSG_MISSING_ACCOUNT } from "./actions.js";
+import type { AccountId, ConversationRecord, ConversationRecordInput } from "../types.js";
+import type { ContentState, ContentUi, SendMessage, Sleep } from "./types.js";
+
+interface SidebarScanner {
+  findSidebarScrollContainer(): HTMLElement | null;
+  rememberVisibleRecords(
+    rootElement: ParentNode,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: AccountId,
+    syncedAt: number
+  ): void;
+  scanConversationList(
+    scrollContainer: HTMLElement,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: AccountId,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void>;
+  scanProjectSections(
+    scrollContainer: HTMLElement,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: AccountId,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void>;
+  scanRecentConversationList(
+    scrollContainer: HTMLElement,
+    foundByUrl: Map<string, ConversationRecord>,
+    knownUrls: Set<string>,
+    accountId: AccountId,
+    syncedAt: number,
+    isCancelled: () => boolean,
+    stopThreshold: number
+  ): Promise<boolean>;
+  getSortedRecords(foundByUrl: Map<string, ConversationRecord>): ConversationRecord[];
+}
+
+interface CreateSyncControllerOptions {
+  detectAccountIdentity: (documentRef: Document) => Promise<AccountId | null>;
+  formatConversationCount: (count: number, label?: string) => string;
+  isSuspiciouslySmallSync: (previousCount: number, nextCount: number) => boolean;
+  mergeRecentRecords: (existingRecords: ConversationRecordInput[], incomingRecords: ConversationRecordInput[]) => ConversationRecord[];
+  recentKnownStopThreshold: number;
+  scanner: SidebarScanner;
+  sendMessage: SendMessage;
+  sleep: Sleep;
+  state: ContentState;
+  ui: ContentUi;
+  renderResults: () => void;
+}
 
 export function createSyncController({
   detectAccountIdentity,
@@ -12,7 +62,10 @@ export function createSyncController({
   state,
   ui,
   renderResults
-}) {
+}: CreateSyncControllerOptions): {
+  runConversationSync: () => Promise<void>;
+  runRecentConversationSync: () => Promise<void>;
+} {
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
@@ -29,7 +82,7 @@ export function createSyncController({
     }
 
     const syncedAt = Date.now();
-    const foundByUrl = new Map();
+    const foundByUrl = new Map<string, ConversationRecord>();
     let cancelled = false;
     state.syncCancel = () => {
       cancelled = true;
@@ -57,11 +110,12 @@ export function createSyncController({
       renderResults();
       ui.showToast(message, "success");
     } catch (error) {
-      const message = error.message === "Sync canceled."
+      const errorMessage = getErrorMessage(error, "Sync failed.");
+      const message = errorMessage === "Sync canceled."
         ? "Sync canceled. Previous index unchanged."
-        : `${error.message} Previous index unchanged.`;
+        : `${errorMessage} Previous index unchanged.`;
       ui.status.textContent = message;
-      ui.showToast(message, error.message === "Sync canceled." ? "warning" : "error");
+      ui.showToast(message, errorMessage === "Sync canceled." ? "warning" : "error");
     } finally {
       ui.syncOverlay.hidden = true;
       state.syncCancel = null;
@@ -87,7 +141,7 @@ export function createSyncController({
     state.records = await sendMessage({ type: "records:list", accountId: state.accountId });
     const knownUrls = new Set(state.records.map((record) => record.url));
     const syncedAt = Date.now();
-    const foundByUrl = new Map();
+    const foundByUrl = new Map<string, ConversationRecord>();
     let cancelled = false;
     state.syncCancel = () => {
       cancelled = true;
@@ -127,11 +181,12 @@ export function createSyncController({
       renderResults();
       ui.showToast(message, "success");
     } catch (error) {
-      const message = error.message === "Sync canceled."
+      const errorMessage = getErrorMessage(error, "Sync failed.");
+      const message = errorMessage === "Sync canceled."
         ? "Sync recent canceled. Previous index unchanged."
-        : `${error.message} Previous index unchanged.`;
+        : `${errorMessage} Previous index unchanged.`;
       ui.status.textContent = message;
-      ui.showToast(message, error.message === "Sync canceled." ? "warning" : "error");
+      ui.showToast(message, errorMessage === "Sync canceled." ? "warning" : "error");
     } finally {
       ui.syncOverlay.hidden = true;
       state.syncCancel = null;
@@ -143,4 +198,8 @@ export function createSyncController({
     runConversationSync,
     runRecentConversationSync
   };
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }

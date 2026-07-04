@@ -20,9 +20,11 @@ import { sendMessage, sleep } from "./runtime.js";
 import { createSidebarScanner } from "./sidebarScan.js";
 import { createSyncController } from "./sync.js";
 import { createContentUi } from "./ui.js";
+import type { ContentState } from "./types.js";
+import type { UiMessage } from "../types.js";
 
 export async function startContentScript() {
-  const state = {
+  const state: ContentState = {
     accountId: null,
     records: [],
     results: [],
@@ -123,7 +125,7 @@ export async function startContentScript() {
     if (event.target === ui.helpBackdrop) ui.closeHelp();
   });
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message: UiMessage) => {
     if (message?.type === "ui:openSearch") actions.openSearch();
     if (message?.type === "ui:toggleSearch") actions.toggleSearch();
   });
@@ -136,7 +138,12 @@ function syncTheme({
   root,
   storageArea = chrome.storage?.local,
   windowRef = window
-} = {}) {
+}: {
+  documentRef?: Document;
+  root: Element;
+  storageArea?: chrome.storage.LocalStorageArea;
+  windowRef?: Window;
+}) {
   const detectedTheme = detectChatGptTheme(documentRef, windowRef);
   if (!detectedTheme) return;
 

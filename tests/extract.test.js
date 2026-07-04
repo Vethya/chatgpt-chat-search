@@ -5,7 +5,7 @@ import {
   extractConversationRecordsFromDocument,
   hasConversationLinks,
   normalizeConversationUrl
-} from "../src/shared/extract.js";
+} from "../dist/extension/src/shared/extract.js";
 
 function anchor(href, text, attrs = {}) {
   return {

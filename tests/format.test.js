@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatConversationCount, formatConversationLabel, formatNumber, getShortcutLabel } from "../src/utils/format.js";
+import { formatConversationCount, formatConversationLabel, formatNumber, getShortcutLabel } from "../dist/extension/src/utils/format.js";
 
 test("formats numbers with separators", () => {
   assert.equal(formatNumber(1199), "1,199");

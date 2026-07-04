@@ -1,10 +1,13 @@
 import { applyPopupTheme, CHATGPT_THEME_STORAGE_KEY, normalizeTheme } from "./shared/theme.js";
+import type { AccountStatus, RuntimeMessage, RuntimeMessageResult, RuntimeResponse } from "./types.js";
 import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
 
-const statusElement = document.querySelector("#status");
-const openSearchButton = document.querySelector("#open-search");
-const openChatGptButton = document.querySelector("#open-chatgpt");
-const shortcutLabelElement = document.querySelector("#shortcut-label");
+type StatusTone = "info" | "warning";
+
+const statusElement = requiredElement<HTMLElement>("#status");
+const openSearchButton = requiredElement<HTMLButtonElement>("#open-search");
+const openChatGptButton = requiredElement<HTMLButtonElement>("#open-chatgpt");
+const shortcutLabelElement = requiredElement<HTMLElement>("#shortcut-label");
 
 setupTheme();
 shortcutLabelElement.textContent = getShortcutLabel();
@@ -38,14 +41,15 @@ async function refreshStatus() {
   }
 }
 
-function renderAccountStatuses(statuses) {
+function renderAccountStatuses(statuses: AccountStatus[]): void {
   if (!Array.isArray(statuses) || statuses.length === 0) {
     renderMessage("No indexed conversations yet.");
     return;
   }
 
   if (statuses.length === 1) {
-    const [status] = statuses;
+    const status = statuses[0];
+    if (!status) return;
     statusElement.className = "status-card status-card-single";
     statusElement.title = formatExactLastSynced(status.lastSyncedAt);
     statusElement.innerHTML = `
@@ -78,13 +82,13 @@ function renderAccountStatuses(statuses) {
   `;
 }
 
-function renderMessage(message, tone = "info") {
+function renderMessage(message: string, tone: StatusTone = "info"): void {
   statusElement.className = `status-card status-message is-${tone}`;
   statusElement.title = "";
   statusElement.textContent = message;
 }
 
-function formatRelativeLastSynced(lastSyncedAt, now = Date.now()) {
+function formatRelativeLastSynced(lastSyncedAt: number, now = Date.now()): string {
   if (!lastSyncedAt) return "Never synced";
   const elapsedMs = Math.max(0, now - lastSyncedAt);
   const minuteMs = 60 * 1000;
@@ -114,40 +118,40 @@ function formatRelativeLastSynced(lastSyncedAt, now = Date.now()) {
   return `Last synced ${month} ${day}${year === currentYear ? "" : `, ${year}`}`;
 }
 
-function formatExactLastSynced(lastSyncedAt) {
+function formatExactLastSynced(lastSyncedAt: number): string {
   if (!lastSyncedAt) return "Never synced";
   return `Last synced ${new Date(lastSyncedAt).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-function formatAccountLabel(accountId) {
+function formatAccountLabel(accountId: string): string {
   const value = String(accountId || "unknown");
   if (value.startsWith("email-sha256:")) return `email hash ${shorten(value.slice("email-sha256:".length))}`;
   if (value.startsWith("id:")) return shorten(value.slice(3));
   return shorten(value);
 }
 
-function shorten(value) {
+function shorten(value: string): string {
   if (value.length <= 18) return value;
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-function escapeHtml(value) {
+function escapeHtml(value: unknown): string {
   return String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
-  })[char]);
+  })[char] ?? char);
 }
 
-function escapeAttribute(value) {
+function escapeAttribute(value: unknown): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
 }
 
-function sendRuntimeMessage(message) {
+function sendRuntimeMessage<T extends RuntimeMessage>(message: T): Promise<RuntimeMessageResult<T>> {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
+    chrome.runtime.sendMessage(message, (response: RuntimeResponse<RuntimeMessageResult<T>>) => {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
         return;
@@ -173,4 +177,10 @@ function setupTheme() {
   } catch {
     return;
   }
+}
+
+function requiredElement<T extends Element>(selector: string): T {
+  const element = document.querySelector(selector);
+  if (!element) throw new Error(`Missing popup element: ${selector}`);
+  return element as T;
 }

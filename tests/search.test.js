@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeText, scoreTitle, searchConversations } from "../src/shared/search.js";
+import { normalizeText, scoreTitle, searchConversations } from "../dist/extension/src/shared/search.js";
 
 const records = [
   { title: "Building a Chrome extension", url: "https://chatgpt.com/c/1", order: 3 },

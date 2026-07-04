@@ -1,7 +1,15 @@
 const TOAST_STATUS_MS = 2000;
 const TOAST_EXIT_MS = 180;
 
-export function createContentUi({ documentRef = document, icon, shortcutLabel }) {
+import type { ContentUi, IconRegistry, ToastTone, SyncOverlayMode } from "./types.js";
+
+interface CreateContentUiOptions {
+  documentRef?: Document;
+  icon: IconRegistry;
+  shortcutLabel: string;
+}
+
+export function createContentUi({ documentRef = document, icon, shortcutLabel }: CreateContentUiOptions): ContentUi {
   const toastIcons = {
     error: icon.xCircle,
     info: icon.infoCircle,
@@ -116,35 +124,35 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
 
   const elements = {
     root,
-    entryButton: root.querySelector(".cgcs-entry"),
-    modalBackdrop: root.querySelector(".cgcs-modal-backdrop"),
-    modal: root.querySelector(".cgcs-modal"),
-    input: root.querySelector(".cgcs-input"),
-    clearSearchButton: root.querySelector(".cgcs-clear-search"),
-    status: root.querySelector(".cgcs-status"),
-    emptyState: root.querySelector(".cgcs-empty-state"),
-    toast: root.querySelector(".cgcs-toast"),
-    toastIcon: root.querySelector(".cgcs-toast-icon"),
-    toastMessage: root.querySelector(".cgcs-toast-message"),
-    resultsList: root.querySelector(".cgcs-results"),
-    infoButton: root.querySelector(".cgcs-info"),
-    quickSyncButton: root.querySelector(".cgcs-quick-sync"),
-    syncButton: root.querySelector(".cgcs-sync"),
-    importButton: root.querySelector(".cgcs-import"),
-    exportButton: root.querySelector(".cgcs-export"),
-    resetButton: root.querySelector(".cgcs-reset"),
-    helpBackdrop: root.querySelector(".cgcs-help-backdrop"),
-    helpCloseButton: root.querySelector(".cgcs-help-close"),
-    syncOverlay: root.querySelector(".cgcs-sync-overlay"),
-    syncVisual: root.querySelector(".cgcs-sync-visual"),
-    syncTitle: root.querySelector(".cgcs-sync-title"),
-    syncSummary: root.querySelector(".cgcs-sync-summary"),
-    syncDetail: root.querySelector(".cgcs-sync-detail"),
-    cancelButton: root.querySelector(".cgcs-cancel")
+    entryButton: requiredElement<HTMLButtonElement>(root, ".cgcs-entry"),
+    modalBackdrop: requiredElement<HTMLDivElement>(root, ".cgcs-modal-backdrop"),
+    modal: requiredElement<HTMLElement>(root, ".cgcs-modal"),
+    input: requiredElement<HTMLInputElement>(root, ".cgcs-input"),
+    clearSearchButton: requiredElement<HTMLButtonElement>(root, ".cgcs-clear-search"),
+    status: requiredElement<HTMLDivElement>(root, ".cgcs-status"),
+    emptyState: requiredElement<HTMLDivElement>(root, ".cgcs-empty-state"),
+    toast: requiredElement<HTMLDivElement>(root, ".cgcs-toast"),
+    toastIcon: requiredElement<HTMLSpanElement>(root, ".cgcs-toast-icon"),
+    toastMessage: requiredElement<HTMLSpanElement>(root, ".cgcs-toast-message"),
+    resultsList: requiredElement<HTMLOListElement>(root, ".cgcs-results"),
+    infoButton: requiredElement<HTMLButtonElement>(root, ".cgcs-info"),
+    quickSyncButton: requiredElement<HTMLButtonElement>(root, ".cgcs-quick-sync"),
+    syncButton: requiredElement<HTMLButtonElement>(root, ".cgcs-sync"),
+    importButton: requiredElement<HTMLButtonElement>(root, ".cgcs-import"),
+    exportButton: requiredElement<HTMLButtonElement>(root, ".cgcs-export"),
+    resetButton: requiredElement<HTMLButtonElement>(root, ".cgcs-reset"),
+    helpBackdrop: requiredElement<HTMLDivElement>(root, ".cgcs-help-backdrop"),
+    helpCloseButton: requiredElement<HTMLButtonElement>(root, ".cgcs-help-close"),
+    syncOverlay: requiredElement<HTMLDivElement>(root, ".cgcs-sync-overlay"),
+    syncVisual: requiredElement<HTMLDivElement>(root, ".cgcs-sync-visual"),
+    syncTitle: requiredElement<HTMLElement>(root, ".cgcs-sync-title"),
+    syncSummary: requiredElement<HTMLParagraphElement>(root, ".cgcs-sync-summary"),
+    syncDetail: requiredElement<HTMLParagraphElement>(root, ".cgcs-sync-detail"),
+    cancelButton: requiredElement<HTMLButtonElement>(root, ".cgcs-cancel")
   };
 
-  let toastTimer = null;
-  let toastExitTimer = null;
+  let toastTimer: number | null = null;
+  let toastExitTimer: number | null = null;
 
   return {
     ...elements,
@@ -163,7 +171,7 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
     updateSearchClearButton() {
       elements.clearSearchButton.hidden = elements.input.value.length === 0;
     },
-    showToast(message, tone = "info") {
+    showToast(message: string, tone: ToastTone = "info") {
       if (toastTimer) window.clearTimeout(toastTimer);
       if (toastExitTimer) window.clearTimeout(toastExitTimer);
       elements.toast.className = `cgcs-toast is-${tone}`;
@@ -182,7 +190,7 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
         }, TOAST_EXIT_MS);
       }, TOAST_STATUS_MS);
     },
-    showSyncOverlay(mode) {
+    showSyncOverlay(mode: SyncOverlayMode) {
       const isRecent = mode === "recent";
       elements.syncVisual.innerHTML = isRecent ? icon.refresh : icon.database;
       elements.syncTitle.textContent = isRecent ? "Syncing recent chats" : "Rebuilding search index";
@@ -192,14 +200,20 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
       elements.syncDetail.textContent = "Preparing your sidebar...";
       elements.syncOverlay.hidden = false;
     },
-    updateSyncDetail(message) {
+    updateSyncDetail(message: string) {
       elements.syncDetail.textContent = message;
     },
-    setActionButtonsDisabled(disabled) {
+    setActionButtonsDisabled(disabled: boolean) {
       for (const button of [elements.quickSyncButton, elements.syncButton, elements.importButton, elements.exportButton, elements.resetButton]) {
         button.disabled = disabled;
         button.classList.toggle("is-busy", disabled);
       }
     }
   };
+}
+
+function requiredElement<T extends Element>(root: ParentNode, selector: string): T {
+  const element = root.querySelector(selector);
+  if (!element) throw new Error(`Missing content UI element: ${selector}`);
+  return element as T;
 }

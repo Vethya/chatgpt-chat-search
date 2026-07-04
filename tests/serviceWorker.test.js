@@ -251,7 +251,7 @@ async function loadServiceWorker(t, options = {}) {
     globalThis.IDBKeyRange = previousIdbKeyRange;
   });
 
-  await import(new URL(`../src/serviceWorker.js?service-worker-test=${importCounter++}`, import.meta.url));
+  await import(new URL(`../dist/extension/src/serviceWorker.js?service-worker-test=${importCounter++}`, import.meta.url));
   assert.equal(messageListeners.length, 1);
   assert.equal(commandListeners.length, 1);
   return worker;

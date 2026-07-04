@@ -6,7 +6,7 @@ import {
   mergeRecordsByUrl,
   parseIndexExport,
   sanitizeRecord
-} from "../src/shared/importExport.js";
+} from "../dist/extension/src/shared/importExport.js";
 
 test("creates and parses index export without raw email", () => {
   const exported = createIndexExport("email-sha256:abc", [

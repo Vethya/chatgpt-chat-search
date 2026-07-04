@@ -173,7 +173,7 @@ async function loadPopup(t, options = {}) {
     Date.now = previousDateNow;
   });
 
-  await import(new URL(`../src/popup.js?popup-test=${importCounter++}`, import.meta.url));
+  await import(new URL(`../dist/extension/src/popup.js?popup-test=${importCounter++}`, import.meta.url));
   await waitFor(() => element("#status").textContent !== "" || element("#status").innerHTML !== "");
   return harness;
 

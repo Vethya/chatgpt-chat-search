@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   RECENT_KNOWN_STOP_THRESHOLD,
   rememberRecentVisibleRecords
-} from "../src/shared/recentSync.js";
+} from "../dist/extension/src/shared/recentSync.js";
 
 test("recent sync does not stop at the first known conversation", () => {
   const foundByUrl = new Map();
