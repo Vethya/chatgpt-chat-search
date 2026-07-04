@@ -45,6 +45,25 @@ test("content script toggles search from the extension shortcut command", async 
   assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
 });
 
+test("content script detects and stores the ChatGPT theme on startup", async (t) => {
+  const harness = await loadContentScript(t, {
+    htmlClass: "dark",
+    records: []
+  });
+
+  assert.equal(harness.rootAttribute("data-cgcs-theme"), "dark");
+  assert.deepEqual(harness.storageSets, [{ chatgptTheme: "dark" }]);
+});
+
+test("content script does not store a fallback when startup theme is ambiguous", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: []
+  });
+
+  assert.equal(harness.rootAttribute("data-cgcs-theme"), null);
+  assert.deepEqual(harness.storageSets, []);
+});
+
 test("content script explains automatic indexing when the local index is empty", async (t) => {
   const harness = await loadContentScript(t, {
     records: []
@@ -247,6 +266,7 @@ async function loadContentScript(t, options = {}) {
   const previousMutationObserver = globalThis.MutationObserver;
   const previousConfirm = globalThis.confirm;
   const sentMessages = [];
+  const storageSets = [];
   const confirmMessages = [];
   const messageListeners = [];
   const windowTimeouts = [];
@@ -284,8 +304,10 @@ async function loadContentScript(t, options = {}) {
       this.documentElement.listeners.set(type, listener);
     }
   };
+  if (options.htmlClass) documentRef.documentElement.classList.add(options.htmlClass);
   const harness = {
     sentMessages,
+    storageSets,
     confirmMessages,
     assignedUrl: "",
     element(selector) {
@@ -302,6 +324,9 @@ async function loadContentScript(t, options = {}) {
     },
     rootMarkup() {
       return documentRef.documentElement.children.at(-1)?.innerHTML || "";
+    },
+    rootAttribute(name) {
+      return documentRef.documentElement.children.at(-1)?.getAttribute(name);
     },
     renderedTitles() {
       return elements.get(".cgcs-results").children.map((item) =>
@@ -371,6 +396,13 @@ async function loadContentScript(t, options = {}) {
           return;
         }
         callback({ ok: true, data: {} });
+      }
+    },
+    storage: {
+      local: {
+        set(value) {
+          storageSets.push(value);
+        }
       }
     }
   };
@@ -463,6 +495,12 @@ class FakeElement {
     this.tagName = tagName;
     const classNames = new Set();
     this.classList = {
+      add(name) {
+        classNames.add(name);
+      },
+      remove(name) {
+        classNames.delete(name);
+      },
       toggle(name, force) {
         const shouldAdd = force ?? !classNames.has(name);
         if (shouldAdd) {
@@ -474,8 +512,12 @@ class FakeElement {
       },
       contains(name) {
         return classNames.has(name);
+      },
+      get value() {
+        return Array.from(classNames).join(" ");
       }
     };
+    this.attributes = new Map();
     this.listeners = new Map();
     this.children = [];
     this.hidden = options.hidden || false;
@@ -487,6 +529,14 @@ class FakeElement {
 
   append(child) {
     this.children.push(child);
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) || null;
   }
 
   addEventListener(type, listener) {
@@ -511,10 +561,6 @@ class FakeElement {
 
   querySelectorAll() {
     return [];
-  }
-
-  getAttribute() {
-    return null;
   }
 
   closest() {

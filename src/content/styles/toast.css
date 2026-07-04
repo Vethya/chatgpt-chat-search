@@ -7,14 +7,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(127, 127, 127, 0.28);
+  border: 1px solid var(--cgcs-border);
   border-radius: 8px;
   padding: 9px 11px;
-  background: color-mix(in srgb, CanvasText 9%, Canvas);
-  color: CanvasText;
+  background: var(--cgcs-surface-raised);
+  color: var(--cgcs-text);
   font-size: 13px;
   line-height: 1.4;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--cgcs-shadow);
   transform: translateX(-50%);
   animation: cgcs-toast-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }

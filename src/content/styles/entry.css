@@ -6,14 +6,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0;
-  border: 1px solid rgba(127, 127, 127, 0.28);
+  border: 1px solid var(--cgcs-border);
   border-radius: 8px;
   padding: 8px 10px;
-  background: Canvas;
-  color: CanvasText;
+  background: var(--cgcs-surface);
+  color: var(--cgcs-text);
   font: inherit;
   line-height: 1;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--cgcs-shadow);
   cursor: pointer;
 }
 
@@ -31,11 +31,11 @@
   align-items: center;
   min-height: 20px;
   overflow: hidden;
-  border: 0 solid rgba(127, 127, 127, 0.24);
+  border: 0 solid var(--cgcs-border-soft);
   border-radius: 6px;
   padding: 2px 0;
-  background: color-mix(in srgb, CanvasText 7%, transparent);
-  color: color-mix(in srgb, CanvasText 66%, transparent);
+  background: var(--cgcs-surface-muted);
+  color: var(--cgcs-text-muted);
   font: inherit;
   font-size: 11px;
   line-height: 1;

@@ -4,12 +4,12 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border: 1px solid rgba(127, 127, 127, 0.28);
+  border: 1px solid var(--cgcs-border);
   border-radius: 8px;
   padding: 14px;
-  background: Canvas;
-  color: CanvasText;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  background: var(--cgcs-surface);
+  color: var(--cgcs-text);
+  box-shadow: var(--cgcs-shadow-strong);
 }
 
 .cgcs-toolbar {
@@ -33,7 +33,7 @@
 .cgcs-input {
   width: 100%;
   height: 42px;
-  border: 1px solid rgba(127, 127, 127, 0.32);
+  border: 1px solid var(--cgcs-border);
   border-radius: 8px;
   padding: 0 44px 0 12px;
   background: transparent;
@@ -60,7 +60,7 @@
 }
 
 .cgcs-clear-search:hover {
-  background: color-mix(in srgb, CanvasText 10%, transparent);
+  background: var(--cgcs-hover);
 }
 
 .cgcs-clear-search[hidden] {
@@ -78,7 +78,7 @@
 .cgcs-status {
   min-height: 20px;
   flex: 1;
-  color: color-mix(in srgb, CanvasText 72%, transparent);
+  color: var(--cgcs-text-muted);
   font-size: 13px;
 }
 
@@ -89,7 +89,7 @@
   place-items: center;
   max-width: 500px;
   margin: 0 auto;
-  color: color-mix(in srgb, CanvasText 72%, transparent);
+  color: var(--cgcs-text-muted);
   font-size: 13px;
   line-height: 1.45;
   text-align: center;
