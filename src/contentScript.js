@@ -501,11 +501,9 @@
   function showToast(message, tone = "info") {
     if (state.toastTimer) window.clearTimeout(state.toastTimer);
     if (state.toastExitTimer) window.clearTimeout(state.toastExitTimer);
-    const normalizedMessage = typeof message === "object" ? message.message : message;
-    const normalizedTone = typeof message === "object" ? message.tone || tone : tone;
-    toast.className = `cgcs-toast is-${normalizedTone}`;
-    toastIcon.innerHTML = toastIcons[normalizedTone] || toastIcons.info;
-    toastMessage.textContent = normalizedMessage;
+    toast.className = `cgcs-toast is-${tone}`;
+    toastIcon.innerHTML = toastIcons[tone] || toastIcons.info;
+    toastMessage.textContent = message;
     toast.hidden = false;
     state.toastTimer = window.setTimeout(() => {
       state.toastTimer = null;
