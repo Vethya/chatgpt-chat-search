@@ -39,6 +39,28 @@
   color-scheme: dark;
 }
 
+@media (prefers-color-scheme: dark) {
+  #cgcs-root:not([data-cgcs-theme]) {
+    --cgcs-surface: Canvas;
+    --cgcs-surface-muted: color-mix(in srgb, CanvasText 7%, transparent);
+    --cgcs-surface-raised: Canvas;
+    --cgcs-text: CanvasText;
+    --cgcs-text-muted: color-mix(in srgb, CanvasText 72%, transparent);
+    --cgcs-text-subtle: color-mix(in srgb, CanvasText 58%, transparent);
+    --cgcs-border: rgba(127, 127, 127, 0.28);
+    --cgcs-border-soft: rgba(127, 127, 127, 0.22);
+    --cgcs-hover: color-mix(in srgb, CanvasText 10%, transparent);
+    --cgcs-active: color-mix(in srgb, CanvasText 10%, transparent);
+    --cgcs-backdrop: rgba(0, 0, 0, 0.18);
+    --cgcs-shadow-strong: 0 24px 80px rgba(0, 0, 0, 0.3);
+    --cgcs-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+    --cgcs-danger: color-mix(in srgb, #ef4444 86%, CanvasText 14%);
+    --cgcs-danger-bg: color-mix(in srgb, #ef4444 12%, transparent);
+    --cgcs-danger-border: color-mix(in srgb, #ef4444 58%, transparent);
+    color-scheme: dark;
+  }
+}
+
 .cgcs-modal-backdrop,
 .cgcs-help-backdrop,
 .cgcs-sync-overlay {

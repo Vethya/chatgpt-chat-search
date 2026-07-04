@@ -8,6 +8,12 @@ test("detects explicit ChatGPT theme classes", () => {
   assert.equal(detectChatGptTheme(fakeDocument({ className: "light" })), "light");
 });
 
+test("ignores theme words inside utility class tokens", () => {
+  const documentRef = fakeDocument({ className: "dark:bg-slate-900 no-dark-mode lightness" });
+
+  assert.equal(detectChatGptTheme(documentRef), null);
+});
+
 test("does not infer theme from ambiguous color-scheme or body background", () => {
   const documentRef = fakeDocument({
     bodyBackgroundColor: "rgb(255, 255, 255)",

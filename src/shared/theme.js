@@ -48,9 +48,9 @@ function detectThemeFromClassList(classList) {
   if (classList.contains?.("dark")) return "dark";
   if (classList.contains?.("light")) return "light";
 
-  const className = String(classList.value || "");
-  if (/\bdark\b/.test(className)) return "dark";
-  if (/\blight\b/.test(className)) return "light";
+  const classNames = String(classList.value || "").split(/\s+/);
+  if (classNames.includes("dark")) return "dark";
+  if (classNames.includes("light")) return "light";
   return null;
 }
 
