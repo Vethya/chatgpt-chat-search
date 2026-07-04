@@ -238,6 +238,9 @@
   async function openSearch() {
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
+    if (!state.accountId) {
+      showToast("Can't identify this ChatGPT account. Open the account menu, then try again.", "warning");
+    }
     updateSearchClearButton();
     renderResults();
     input.focus();
@@ -477,9 +480,12 @@
       : "That conversation was already absent from the local index.");
   }
 
-  function showToast(message) {
+  function showToast(message, tone = "info") {
     if (state.toastTimer) window.clearTimeout(state.toastTimer);
-    toast.textContent = message;
+    const normalizedMessage = typeof message === "object" ? message.message : message;
+    const normalizedTone = typeof message === "object" ? message.tone || tone : tone;
+    toast.className = `cgcs-toast is-${normalizedTone}`;
+    toast.textContent = normalizedMessage;
     toast.hidden = false;
     state.toastTimer = window.setTimeout(() => {
       state.toastTimer = null;
@@ -503,15 +509,26 @@
     syncDetail.textContent = message;
   }
 
+  function setActionButtonsDisabled(disabled) {
+    for (const button of [quickSyncButton, syncButton, importButton, exportButton, resetButton]) {
+      button.disabled = disabled;
+      button.classList.toggle("is-busy", disabled);
+    }
+  }
+
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try sync again.";
+      const message = "Open the ChatGPT sidebar, then try sync again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
 
@@ -523,6 +540,7 @@
     };
 
     try {
+      setActionButtonsDisabled(true);
       showSyncOverlay("full");
       scrollContainer.scrollTop = 0;
       await sleep(500);
@@ -539,27 +557,36 @@
       }
       await sendMessage({ type: "records:replace", accountId: state.accountId, records });
       state.records = records;
-      status.textContent = `Synced ${formatConversationCount(records.length)}.`;
+      const message = `Synced ${formatConversationCount(records.length)}.`;
+      status.textContent = message;
       renderResults();
+      showToast(message, "success");
     } catch (error) {
-      status.textContent = error.message === "Sync canceled."
+      const message = error.message === "Sync canceled."
         ? "Sync canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
+      status.textContent = message;
+      showToast(message, error.message === "Sync canceled." ? "warning" : "error");
     } finally {
       syncOverlay.hidden = true;
       state.syncCancel = null;
+      setActionButtonsDisabled(false);
     }
   }
 
   async function runRecentConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try Sync recent again.";
+      const message = "Open the ChatGPT sidebar, then try Sync recent again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return;
     }
 
@@ -573,6 +600,7 @@
     };
 
     try {
+      setActionButtonsDisabled(true);
       showSyncOverlay("recent");
       scrollContainer.scrollTop = 0;
       await sleep(300);
@@ -588,37 +616,54 @@
       const records = [...foundByUrl.values()].sort(compareRecordOrder);
 
       if (records.length === 0) {
-        status.textContent = hitKnownRecord
+        const message = hitKnownRecord
           ? "No new recent conversations found."
           : "No recent conversations found before quick sync stopped.";
+        status.textContent = message;
         renderResults();
+        showToast(message, "info");
         return;
       }
 
       await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
       state.records = mergeRecentRecords(state.records, records);
-      status.textContent = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
+      const message = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
+      status.textContent = message;
       renderResults();
+      showToast(message, "success");
     } catch (error) {
-      status.textContent = error.message === "Sync canceled."
+      const message = error.message === "Sync canceled."
         ? "Sync recent canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
+      status.textContent = message;
+      showToast(message, error.message === "Sync canceled." ? "warning" : "error");
     } finally {
       syncOverlay.hidden = true;
       state.syncCancel = null;
+      setActionButtonsDisabled(false);
     }
   }
 
   async function exportIndex() {
     if (!(await ensureAccount())) return;
-    const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `chatgpt-conversation-index-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    exportButton.disabled = true;
+    exportButton.classList.toggle("is-busy", true);
+    try {
+      const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `chatgpt-conversation-index-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast("Export downloaded.", "success");
+    } catch (error) {
+      showToast(error.message || "Export failed.", "error");
+    } finally {
+      exportButton.disabled = false;
+      exportButton.classList.toggle("is-busy", false);
+    }
   }
 
   async function importIndex() {
@@ -628,12 +673,25 @@
     picker.addEventListener("change", async () => {
       const file = picker.files?.[0];
       if (!file) return;
-      const text = await file.text();
-      const exportData = JSON.parse(text);
-      const result = await sendMessage({ type: "records:import", exportData });
-      await refreshAccountAndRecords();
-      renderResults();
-      status.textContent = `Imported ${formatConversationCount(result.imported, "record")}.`;
+      importButton.disabled = true;
+      importButton.classList.toggle("is-busy", true);
+      try {
+        const text = await file.text();
+        const exportData = JSON.parse(text);
+        const result = await sendMessage({ type: "records:import", exportData });
+        await refreshAccountAndRecords();
+        renderResults();
+        const message = `Imported ${formatConversationCount(result.imported, "record")}.`;
+        status.textContent = message;
+        showToast(message, "success");
+      } catch (error) {
+        const message = error.message || "Import failed.";
+        status.textContent = message;
+        showToast(message, "error");
+      } finally {
+        importButton.disabled = false;
+        importButton.classList.toggle("is-busy", false);
+      }
     });
     picker.click();
   }
@@ -641,15 +699,27 @@
   async function resetIndex() {
     if (!(await ensureAccount())) return;
     if (!confirm("Clear the local conversation index for this ChatGPT account?")) return;
-    await sendMessage({ type: "records:reset", accountId: state.accountId });
-    state.records = [];
-    renderResults();
+    resetButton.disabled = true;
+    resetButton.classList.toggle("is-busy", true);
+    try {
+      await sendMessage({ type: "records:reset", accountId: state.accountId });
+      state.records = [];
+      renderResults();
+      showToast("Local index cleared.", "success");
+    } catch (error) {
+      showToast(error.message || "Clear index failed.", "error");
+    } finally {
+      resetButton.disabled = false;
+      resetButton.classList.toggle("is-busy", false);
+    }
   }
 
   async function ensureAccount() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = message;
+      showToast(message, "warning");
       return false;
     }
     return true;

@@ -169,6 +169,17 @@
   cursor: pointer;
 }
 
+.cgcs-small:disabled,
+.cgcs-cancel:disabled,
+.cgcs-icon-button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.cgcs-small.is-busy {
+  background: color-mix(in srgb, CanvasText 7%, transparent);
+}
+
 .cgcs-small,
 .cgcs-cancel {
   display: inline-flex;
@@ -419,11 +430,32 @@
   max-width: min(360px, calc(100vw - 36px));
   border: 1px solid rgba(127, 127, 127, 0.28);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 9px 11px;
   background: color-mix(in srgb, CanvasText 9%, Canvas);
   color: CanvasText;
   font-size: 13px;
+  line-height: 1.4;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
+}
+
+.cgcs-toast.is-success {
+  border-color: color-mix(in srgb, #16a34a 42%, transparent);
+  background: color-mix(in srgb, #16a34a 14%, Canvas);
+}
+
+.cgcs-toast.is-info {
+  border-color: color-mix(in srgb, #2563eb 34%, transparent);
+  background: color-mix(in srgb, #2563eb 10%, Canvas);
+}
+
+.cgcs-toast.is-warning {
+  border-color: color-mix(in srgb, #d97706 44%, transparent);
+  background: color-mix(in srgb, #d97706 14%, Canvas);
+}
+
+.cgcs-toast.is-error {
+  border-color: color-mix(in srgb, #dc2626 48%, transparent);
+  background: color-mix(in srgb, #dc2626 14%, Canvas);
 }
 
 .cgcs-toast[hidden] {

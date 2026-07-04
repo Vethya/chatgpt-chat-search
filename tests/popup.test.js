@@ -82,6 +82,7 @@ test("open search button reports when the content script is unavailable", async 
   await harness.click("#open-search");
 
   assert.equal(harness.element("#status").textContent, "Refresh the ChatGPT tab, then try again.");
+  assert.equal(harness.element("#status").className, "status-card status-message is-warning");
   assert.equal(harness.closed, false);
 });
 

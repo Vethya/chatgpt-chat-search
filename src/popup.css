@@ -36,6 +36,12 @@ h1 {
   line-height: 1.4;
 }
 
+.status-message.is-warning {
+  border-color: #f0b429;
+  background: #fff8c5;
+  color: #7d4e00;
+}
+
 .status-card-single {
   grid-template-columns: auto 1fr;
   align-items: baseline;

@@ -145,6 +145,38 @@ test("content script shows a temporary toast after delete", async (t) => {
   assert.equal(harness.element(".cgcs-toast").hidden, true);
 });
 
+test("content script shows a success toast after clearing the local index", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-reset");
+
+  assert.deepEqual(harness.renderedTitles(), []);
+  assert.deepEqual(harness.sentMessages.at(-1), {
+    type: "records:reset",
+    accountId: "id:acct_content"
+  });
+  assert.equal(harness.element(".cgcs-toast").textContent, "Local index cleared.");
+  assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-success");
+  assert.equal(harness.element(".cgcs-toast").hidden, false);
+});
+
+test("content script shows a warning toast when sync cannot start", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-sync");
+
+  assert.equal(harness.element(".cgcs-status").textContent, "Open the ChatGPT sidebar, then try sync again.");
+  assert.equal(harness.element(".cgcs-toast").textContent, "Open the ChatGPT sidebar, then try sync again.");
+  assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-warning");
+  assert.equal(harness.element(".cgcs-toast").hidden, false);
+});
+
 test("content script explains index actions in a help dialog", async (t) => {
   const harness = await loadContentScript(t, {
     records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
@@ -192,6 +224,11 @@ test("content script reports missing account identity", async (t) => {
     harness.element(".cgcs-status").textContent,
     "Can't identify this ChatGPT account. Open the account menu, then try again."
   );
+  assert.equal(
+    harness.element(".cgcs-toast").textContent,
+    "Can't identify this ChatGPT account. Open the account menu, then try again."
+  );
+  assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-warning");
   assert.deepEqual(harness.sentMessages, []);
 });
 
