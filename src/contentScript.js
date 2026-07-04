@@ -8,6 +8,7 @@
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
   const TOAST_EXIT_MS = 180;
+  const MSG_MISSING_ACCOUNT = "Can't identify this ChatGPT account. Open the account menu, then try again.";
 
   const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule, orderModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
@@ -256,7 +257,7 @@
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
     if (!state.accountId) {
-      showToast("Can't identify this ChatGPT account. Open the account menu, then try again.", "warning");
+      showToast(MSG_MISSING_ACCOUNT, "warning");
     }
     updateSearchClearButton();
     renderResults();
@@ -425,7 +426,7 @@
     emptyState.textContent = "";
 
     if (!state.accountId) {
-      status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
+      status.textContent = MSG_MISSING_ACCOUNT;
       return;
     }
     if (state.records.length === 0) {
@@ -544,9 +545,8 @@
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
-      status.textContent = message;
-      showToast(message, "warning");
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
@@ -602,9 +602,8 @@
   async function runRecentConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
-      status.textContent = message;
-      showToast(message, "warning");
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
     }
     const scrollContainer = findSidebarScrollContainer();
@@ -742,9 +741,8 @@
   async function ensureAccount() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
-      const message = "Can't identify this ChatGPT account. Open the account menu, then try again.";
-      status.textContent = message;
-      showToast(message, "warning");
+      status.textContent = MSG_MISSING_ACCOUNT;
+      showToast(MSG_MISSING_ACCOUNT, "warning");
       return false;
     }
     return true;
