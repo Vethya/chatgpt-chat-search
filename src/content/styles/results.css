@@ -2,6 +2,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 4px;
   overflow: auto;
   margin: 0;
