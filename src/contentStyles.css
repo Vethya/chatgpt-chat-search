@@ -428,6 +428,9 @@
   left: 50%;
   z-index: 2147483002;
   max-width: min(360px, calc(100vw - 36px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid rgba(127, 127, 127, 0.28);
   border-radius: 8px;
   padding: 9px 11px;
@@ -440,24 +443,18 @@
   animation: cgcs-toast-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.cgcs-toast.is-success {
-  border-color: color-mix(in srgb, #16a34a 42%, transparent);
-  background: color-mix(in srgb, #16a34a 14%, Canvas);
+.cgcs-toast-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  opacity: 0.72;
 }
 
-.cgcs-toast.is-info {
-  border-color: color-mix(in srgb, #2563eb 34%, transparent);
-  background: color-mix(in srgb, #2563eb 10%, Canvas);
-}
-
-.cgcs-toast.is-warning {
-  border-color: color-mix(in srgb, #d97706 44%, transparent);
-  background: color-mix(in srgb, #d97706 14%, Canvas);
-}
-
-.cgcs-toast.is-error {
-  border-color: color-mix(in srgb, #dc2626 48%, transparent);
-  background: color-mix(in srgb, #dc2626 14%, Canvas);
+.cgcs-toast-icon .cgcs-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .cgcs-toast.is-exiting {

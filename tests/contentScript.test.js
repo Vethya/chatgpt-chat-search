@@ -133,9 +133,10 @@ test("content script shows a temporary toast after delete", async (t) => {
 
   assert.equal(harness.element(".cgcs-status").textContent, "1 indexed conversations");
   assert.equal(
-    harness.element(".cgcs-toast").textContent,
+    harness.element(".cgcs-toast-message").textContent,
     'Removed "First conversation" from the local index.'
   );
+  assert.match(harness.element(".cgcs-toast-icon").innerHTML, /<svg/);
   assert.equal(harness.element(".cgcs-toast").hidden, false);
 
   harness.runWindowTimeout(2000);
@@ -146,7 +147,7 @@ test("content script shows a temporary toast after delete", async (t) => {
 
   harness.runWindowTimeout(180);
 
-  assert.equal(harness.element(".cgcs-toast").textContent, "");
+  assert.equal(harness.element(".cgcs-toast-message").textContent, "");
   assert.equal(harness.element(".cgcs-toast").hidden, true);
   assert.equal(harness.element(".cgcs-toast").classList.contains("is-exiting"), false);
 });
@@ -164,7 +165,7 @@ test("content script shows a success toast after clearing the local index", asyn
     type: "records:reset",
     accountId: "id:acct_content"
   });
-  assert.equal(harness.element(".cgcs-toast").textContent, "Local index cleared.");
+  assert.equal(harness.element(".cgcs-toast-message").textContent, "Local index cleared.");
   assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-success");
   assert.equal(harness.element(".cgcs-toast").hidden, false);
 });
@@ -178,7 +179,7 @@ test("content script shows a warning toast when sync cannot start", async (t) =>
   await harness.click(".cgcs-sync");
 
   assert.equal(harness.element(".cgcs-status").textContent, "Open the ChatGPT sidebar, then try sync again.");
-  assert.equal(harness.element(".cgcs-toast").textContent, "Open the ChatGPT sidebar, then try sync again.");
+  assert.equal(harness.element(".cgcs-toast-message").textContent, "Open the ChatGPT sidebar, then try sync again.");
   assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-warning");
   assert.equal(harness.element(".cgcs-toast").hidden, false);
 });
@@ -231,7 +232,7 @@ test("content script reports missing account identity", async (t) => {
     "Can't identify this ChatGPT account. Open the account menu, then try again."
   );
   assert.equal(
-    harness.element(".cgcs-toast").textContent,
+    harness.element(".cgcs-toast-message").textContent,
     "Can't identify this ChatGPT account. Open the account menu, then try again."
   );
   assert.equal(harness.element(".cgcs-toast").className, "cgcs-toast is-warning");
@@ -398,6 +399,8 @@ function createContentScriptElements() {
     [".cgcs-status", new FakeElement("div")],
     [".cgcs-empty-state", new FakeElement("div", { hidden: true })],
     [".cgcs-toast", new FakeElement("div", { hidden: true })],
+    [".cgcs-toast-icon", new FakeElement("span")],
+    [".cgcs-toast-message", new FakeElement("span")],
     [".cgcs-results", new FakeElement("ol")],
     [".cgcs-info", new FakeElement("button")],
     [".cgcs-quick-sync", new FakeElement("button")],
