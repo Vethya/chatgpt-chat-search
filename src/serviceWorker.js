@@ -5,6 +5,7 @@ import {
   parseIndexExport,
   sanitizeRecord
 } from "./shared/importExport.js";
+import { compareRecordOrder } from "./shared/order.js";
 
 const DB_NAME = "chatgpt-conversation-search";
 const DB_VERSION = 1;
@@ -73,7 +74,7 @@ async function listRecords(accountId) {
     const index = store.index("accountId");
     const request = index.getAll(accountId);
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result.sort((a, b) => a.order - b.order));
+    request.onsuccess = () => resolve(request.result.sort(compareRecordOrder));
   });
 }
 

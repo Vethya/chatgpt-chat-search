@@ -8,14 +8,15 @@
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
 
-  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule] = await Promise.all([
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule, orderModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
     import(chrome.runtime.getURL("src/shared/account.js")),
     import(chrome.runtime.getURL("src/shared/syncIntegrity.js")),
     import(chrome.runtime.getURL("src/shared/importExport.js")),
     import(chrome.runtime.getURL("src/shared/recentSync.js")),
-    import(chrome.runtime.getURL("src/utils/format.js"))
+    import(chrome.runtime.getURL("src/utils/format.js")),
+    import(chrome.runtime.getURL("src/shared/order.js"))
   ]);
 
   const {
@@ -29,7 +30,8 @@
   const { isSuspiciouslySmallSync } = syncIntegrityModule;
   const { mergeRecentRecords } = importExportModule;
   const { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } = recentSyncModule;
-  const { formatConversationCount, formatNumber } = formatModule;
+  const { formatConversationCount, formatNumber, getShortcutLabel } = formatModule;
+  const { compareRecordOrder } = orderModule;
 
   const state = {
     accountId: null,
@@ -164,11 +166,6 @@
 
   function svg(paths, className = "cgcs-icon") {
     return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
-  }
-
-  function getShortcutLabel() {
-    const platform = globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "";
-    return /mac/i.test(platform) ? "Cmd+Shift+." : "Ctrl+Shift+.";
   }
 
   const entryButton = root.querySelector(".cgcs-entry");
@@ -535,7 +532,7 @@
 
       await scanProjectSections(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
 
-      const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
+      const records = [...foundByUrl.values()].sort(compareRecordOrder);
       if (records.length === 0) throw new Error("Sync could not find sidebar conversations.");
       if (isSuspiciouslySmallSync(state.records.length, records.length)) {
         throw new Error(`Sync found only ${formatConversationCount(records.length)}, but the current index has ${formatConversationCount(state.records.length)}.`);
@@ -588,7 +585,7 @@
         syncedAt,
         () => cancelled
       );
-      const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
+      const records = [...foundByUrl.values()].sort(compareRecordOrder);
 
       if (records.length === 0) {
         status.textContent = hitKnownRecord

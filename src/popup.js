@@ -1,4 +1,4 @@
-import { formatConversationLabel, formatNumber } from "./utils/format.js";
+import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
 
 const statusElement = document.querySelector("#status");
 const openSearchButton = document.querySelector("#open-search");
@@ -141,11 +141,6 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#96;");
-}
-
-function getShortcutLabel() {
-  const platform = globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "";
-  return /mac/i.test(platform) ? "Cmd+Shift+." : "Ctrl+Shift+.";
 }
 
 function sendRuntimeMessage(message) {
