@@ -668,8 +668,7 @@
 
   async function exportIndex() {
     if (!(await ensureAccount())) return;
-    exportButton.disabled = true;
-    exportButton.classList.toggle("is-busy", true);
+    setActionButtonsDisabled(true);
     try {
       const exportData = await sendMessage({ type: "records:export", accountId: state.accountId });
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
@@ -683,8 +682,7 @@
     } catch (error) {
       showToast(error.message || "Export failed.", "error");
     } finally {
-      exportButton.disabled = false;
-      exportButton.classList.toggle("is-busy", false);
+      setActionButtonsDisabled(false);
     }
   }
 
@@ -695,8 +693,7 @@
     picker.addEventListener("change", async () => {
       const file = picker.files?.[0];
       if (!file) return;
-      importButton.disabled = true;
-      importButton.classList.toggle("is-busy", true);
+      setActionButtonsDisabled(true);
       try {
         const text = await file.text();
         const exportData = JSON.parse(text);
@@ -711,8 +708,7 @@
         status.textContent = message;
         showToast(message, "error");
       } finally {
-        importButton.disabled = false;
-        importButton.classList.toggle("is-busy", false);
+        setActionButtonsDisabled(false);
       }
     });
     picker.click();
@@ -721,8 +717,7 @@
   async function resetIndex() {
     if (!(await ensureAccount())) return;
     if (!confirm("Clear the local conversation index for this ChatGPT account?")) return;
-    resetButton.disabled = true;
-    resetButton.classList.toggle("is-busy", true);
+    setActionButtonsDisabled(true);
     try {
       await sendMessage({ type: "records:reset", accountId: state.accountId });
       state.records = [];
@@ -731,8 +726,7 @@
     } catch (error) {
       showToast(error.message || "Clear index failed.", "error");
     } finally {
-      resetButton.disabled = false;
-      resetButton.classList.toggle("is-busy", false);
+      setActionButtonsDisabled(false);
     }
   }
 
