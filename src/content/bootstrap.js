@@ -154,19 +154,7 @@ function watchSearchRoute(callback, windowRef = window) {
 
   windowRef.addEventListener("popstate", refresh);
   windowRef.addEventListener("hashchange", refresh);
-
-  const historyRef = windowRef.history;
-  if (!historyRef) return;
-
-  for (const method of ["pushState", "replaceState"]) {
-    const original = historyRef[method];
-    if (typeof original !== "function") continue;
-    historyRef[method] = function patchedHistoryMethod(...args) {
-      const result = original.apply(this, args);
-      windowRef.setTimeout(refresh, 0);
-      return result;
-    };
-  }
+  windowRef.setInterval(refresh, 500);
 }
 
 function syncTheme({

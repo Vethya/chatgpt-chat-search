@@ -60,6 +60,31 @@ test("content script hides search UI on non-conversation ChatGPT routes", async 
   assert.deepEqual(harness.sentMessages, []);
 });
 
+test("content script updates search UI when SPA navigation changes the URL", async (t) => {
+  const harness = await loadContentScript(t);
+
+  assert.equal(harness.rootHidden(), false);
+
+  harness.setLocationHref("https://chatgpt.com/codex/settings");
+  harness.runWindowInterval(500);
+
+  assert.equal(harness.rootHidden(), true);
+
+  harness.setLocationHref("https://chatgpt.com/c/abc");
+  harness.runWindowInterval(500);
+
+  assert.equal(harness.rootHidden(), false);
+});
+
+test("content script updates search UI on popstate navigation", async (t) => {
+  const harness = await loadContentScript(t);
+
+  harness.setLocationHref("https://chatgpt.com/settings");
+  harness.windowEvent("popstate");
+
+  assert.equal(harness.rootHidden(), true);
+});
+
 test("content script detects and stores the ChatGPT theme on startup", async (t) => {
   const harness = await loadContentScript(t, {
     htmlClass: "dark",
@@ -285,6 +310,8 @@ async function loadContentScript(t, options = {}) {
   const confirmMessages = [];
   const messageListeners = [];
   const windowTimeouts = [];
+  const windowIntervals = [];
+  const windowListeners = new Map();
   const elements = createContentScriptElements();
   const documentRef = {
     title: "ChatGPT",
@@ -337,6 +364,12 @@ async function loadContentScript(t, options = {}) {
     runtimeMessage(message) {
       messageListeners.forEach((listener) => listener(message));
     },
+    windowEvent(type) {
+      for (const listener of windowListeners.get(type) || []) listener();
+    },
+    setLocationHref(href) {
+      globalThis.location.href = href;
+    },
     rootMarkup() {
       return documentRef.documentElement.children.at(-1)?.innerHTML || "";
     },
@@ -359,6 +392,11 @@ async function loadContentScript(t, options = {}) {
       assert.ok(timer, `Expected an active window timeout with delay ${delay}.`);
       timer.cleared = true;
       timer.callback();
+    },
+    runWindowInterval(delay) {
+      const interval = windowIntervals.findLast((entry) => entry.delay === delay);
+      assert.ok(interval, `Expected an active window interval with delay ${delay}.`);
+      interval.callback();
     }
   };
 
@@ -373,18 +411,24 @@ async function loadContentScript(t, options = {}) {
         harness.assignedUrl = url;
       }
     },
-    addEventListener() {},
+    addEventListener(type, listener) {
+      if (!windowListeners.has(type)) windowListeners.set(type, []);
+      windowListeners.get(type).push(listener);
+    },
     clearTimeout(id) {
       const timer = windowTimeouts.find((entry) => entry.id === id);
       if (timer) timer.cleared = true;
     },
-    setInterval() {},
+    setInterval(callback, delay) {
+      const interval = { id: windowIntervals.length + 1, callback, delay };
+      windowIntervals.push(interval);
+      return interval.id;
+    },
     setTimeout(callback, delay) {
       const timer = { id: windowTimeouts.length + 1, callback, delay, cleared: false };
       windowTimeouts.push(timer);
       return timer.id;
-    },
-    history: {}
+    }
   };
   globalThis.MutationObserver = class {
     observe() {}
