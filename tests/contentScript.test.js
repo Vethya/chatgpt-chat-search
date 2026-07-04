@@ -19,6 +19,19 @@ test("content script opens search and renders indexed records", async (t) => {
   assert.deepEqual(harness.renderedTitles(), ["First conversation", "Second conversation"]);
 });
 
+test("content script comma-separates indexed conversation counts", async (t) => {
+  const records = Array.from({ length: 1199 }, (_, index) => ({
+    title: `Conversation ${index + 1}`,
+    url: `https://chatgpt.com/c/${index + 1}`,
+    order: index
+  }));
+  const harness = await loadContentScript(t, { records });
+
+  await harness.click(".cgcs-entry");
+
+  assert.equal(harness.element(".cgcs-status").textContent, "1,199 indexed conversations");
+});
+
 test("content script toggles search from the extension shortcut command", async (t) => {
   const harness = await loadContentScript(t, {
     records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
@@ -30,6 +43,22 @@ test("content script toggles search from the extension shortcut command", async 
   harness.runtimeMessage({ type: "ui:toggleSearch" });
 
   assert.equal(harness.element(".cgcs-modal-backdrop").hidden, true);
+});
+
+test("content script explains automatic indexing when the local index is empty", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: []
+  });
+
+  await harness.click(".cgcs-entry");
+
+  assert.equal(harness.element(".cgcs-status").textContent, "");
+  assert.equal(
+    harness.element(".cgcs-empty-state").textContent,
+    "New chats are saved automatically. Use Full sync to bring in your existing sidebar history."
+  );
+  assert.equal(harness.element(".cgcs-empty-state").hidden, false);
+  assert.equal(harness.element(".cgcs-modal").classList.contains("is-empty"), true);
 });
 
 test("content script filters results and navigates selected conversations", async (t) => {
@@ -47,6 +76,29 @@ test("content script filters results and navigates selected conversations", asyn
 
   assert.deepEqual(harness.renderedTitles(), ["Second conversation"]);
   assert.equal(harness.assignedUrl, "https://chatgpt.com/c/second");
+});
+
+test("content script clears search with a dedicated clear button", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [
+      { title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 },
+      { title: "Second conversation", url: "https://chatgpt.com/c/second", order: 1 }
+    ]
+  });
+
+  await harness.click(".cgcs-entry");
+  harness.element(".cgcs-input").value = "second";
+  harness.dispatch(".cgcs-input", "input");
+
+  assert.equal(harness.element(".cgcs-clear-search").hidden, false);
+  assert.deepEqual(harness.renderedTitles(), ["Second conversation"]);
+
+  await harness.click(".cgcs-clear-search");
+
+  assert.equal(harness.element(".cgcs-input").value, "");
+  assert.equal(harness.element(".cgcs-clear-search").hidden, true);
+  assert.equal(harness.element(".cgcs-input").focused, true);
+  assert.deepEqual(harness.renderedTitles(), ["First conversation", "Second conversation"]);
 });
 
 test("content script deletes a single local record", async (t) => {
@@ -93,6 +145,41 @@ test("content script shows a temporary toast after delete", async (t) => {
   assert.equal(harness.element(".cgcs-toast").hidden, true);
 });
 
+test("content script explains index actions in a help dialog", async (t) => {
+  const harness = await loadContentScript(t, {
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-info");
+
+  assert.equal(harness.element(".cgcs-help-backdrop").hidden, false);
+  assert.equal(harness.element(".cgcs-help-close").focused, true);
+  assert.equal((harness.rootMarkup().match(/class="cgcs-help-card/g) || []).length, 6);
+  assert.match(harness.rootMarkup(), /class="cgcs-help-icon"/);
+  assert.match(harness.rootMarkup(), /Automatic indexing/);
+
+  await harness.click(".cgcs-help-close");
+
+  assert.equal(harness.element(".cgcs-help-backdrop").hidden, true);
+  assert.equal(harness.element(".cgcs-info").focused, true);
+});
+
+test("content script does not clear the local index when confirmation is declined", async (t) => {
+  const harness = await loadContentScript(t, {
+    confirmResponse: false,
+    records: [{ title: "First conversation", url: "https://chatgpt.com/c/first", order: 0 }]
+  });
+
+  await harness.click(".cgcs-entry");
+  await harness.click(".cgcs-reset");
+
+  assert.deepEqual(harness.confirmMessages, [
+    "Clear the local conversation index for this ChatGPT account?"
+  ]);
+  assert.equal(harness.sentMessages.some((message) => message.type === "records:reset"), false);
+});
+
 test("content script reports missing account identity", async (t) => {
   const harness = await loadContentScript(t, {
     accountElement: null,
@@ -116,6 +203,7 @@ async function loadContentScript(t, options = {}) {
   const previousMutationObserver = globalThis.MutationObserver;
   const previousConfirm = globalThis.confirm;
   const sentMessages = [];
+  const confirmMessages = [];
   const messageListeners = [];
   const windowTimeouts = [];
   const elements = createContentScriptElements();
@@ -154,6 +242,7 @@ async function loadContentScript(t, options = {}) {
   };
   const harness = {
     sentMessages,
+    confirmMessages,
     assignedUrl: "",
     element(selector) {
       return elements.get(selector);
@@ -166,6 +255,9 @@ async function loadContentScript(t, options = {}) {
     },
     runtimeMessage(message) {
       messageListeners.forEach((listener) => listener(message));
+    },
+    rootMarkup() {
+      return documentRef.documentElement.children.at(-1)?.innerHTML || "";
     },
     renderedTitles() {
       return elements.get(".cgcs-results").children.map((item) =>
@@ -209,7 +301,10 @@ async function loadContentScript(t, options = {}) {
   globalThis.MutationObserver = class {
     observe() {}
   };
-  globalThis.confirm = () => true;
+  globalThis.confirm = (message) => {
+    confirmMessages.push(message);
+    return options.confirmResponse ?? true;
+  };
   globalThis.chrome = {
     runtime: {
       lastError: null,
@@ -254,16 +349,25 @@ function createContentScriptElements() {
   return new Map([
     [".cgcs-entry", new FakeElement("button")],
     [".cgcs-modal-backdrop", new FakeElement("div", { hidden: true })],
+    [".cgcs-modal", new FakeElement("section")],
     [".cgcs-input", new FakeElement("input")],
+    [".cgcs-clear-search", new FakeElement("button", { hidden: true })],
     [".cgcs-status", new FakeElement("div")],
+    [".cgcs-empty-state", new FakeElement("div", { hidden: true })],
     [".cgcs-toast", new FakeElement("div", { hidden: true })],
     [".cgcs-results", new FakeElement("ol")],
+    [".cgcs-info", new FakeElement("button")],
     [".cgcs-quick-sync", new FakeElement("button")],
     [".cgcs-sync", new FakeElement("button")],
     [".cgcs-import", new FakeElement("button")],
     [".cgcs-export", new FakeElement("button")],
     [".cgcs-reset", new FakeElement("button")],
+    [".cgcs-help-backdrop", new FakeElement("div", { hidden: true })],
+    [".cgcs-help-close", new FakeElement("button")],
     [".cgcs-sync-overlay", new FakeElement("div", { hidden: true })],
+    [".cgcs-sync-visual", new FakeElement("div")],
+    [".cgcs-sync-title", new FakeElement("strong")],
+    [".cgcs-sync-summary", new FakeElement("p")],
     [".cgcs-sync-detail", new FakeElement("p")],
     [".cgcs-cancel", new FakeElement("button")]
   ]);
@@ -311,6 +415,21 @@ async function waitFor(predicate) {
 class FakeElement {
   constructor(tagName, options = {}) {
     this.tagName = tagName;
+    const classNames = new Set();
+    this.classList = {
+      toggle(name, force) {
+        const shouldAdd = force ?? !classNames.has(name);
+        if (shouldAdd) {
+          classNames.add(name);
+        } else {
+          classNames.delete(name);
+        }
+        return shouldAdd;
+      },
+      contains(name) {
+        return classNames.has(name);
+      }
+    };
     this.listeners = new Map();
     this.children = [];
     this.hidden = options.hidden || false;

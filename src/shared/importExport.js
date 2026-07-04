@@ -1,3 +1,5 @@
+import { compareRecordOrder } from "./order.js";
+
 export const EXPORT_VERSION = 1;
 
 export function createIndexExport(accountId, records, exportedAt = new Date().toISOString()) {
@@ -36,16 +38,16 @@ export function mergeRecordsByUrl(existingRecords, incomingRecords) {
     const previous = byUrl.get(clean.url);
     byUrl.set(clean.url, chooseNewerRecord(previous, clean));
   }
-  return [...byUrl.values()].sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+  return [...byUrl.values()].sort(compareRecordOrder);
 }
 
 export function mergeRecentRecords(existingRecords, incomingRecords) {
-  const recent = dedupeRecordsByUrl(incomingRecords).sort(compareByOrder);
+  const recent = dedupeRecordsByUrl(incomingRecords).sort(compareRecordOrder);
   const recentUrls = new Set(recent.map((record) => record.url));
   const older = existingRecords
     .map((record) => sanitizeRecord(record))
     .filter((record) => !recentUrls.has(record.url))
-    .sort(compareByOrder);
+    .sort(compareRecordOrder);
 
   return [...recent, ...older].map((record, order) => ({ ...record, order }));
 }
@@ -76,8 +78,4 @@ function dedupeRecordsByUrl(records) {
     byUrl.set(clean.url, chooseNewerRecord(previous, clean));
   }
   return [...byUrl.values()];
-}
-
-function compareByOrder(left, right) {
-  return (left.order ?? 0) - (right.order ?? 0);
 }

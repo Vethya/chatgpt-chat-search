@@ -8,13 +8,15 @@
   const AUTO_INDEX_POLL_MS = 2500;
   const TOAST_STATUS_MS = 2000;
 
-  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule] = await Promise.all([
+  const [{ searchConversations }, extractModule, accountModule, syncIntegrityModule, importExportModule, recentSyncModule, formatModule, orderModule] = await Promise.all([
     import(chrome.runtime.getURL("src/shared/search.js")),
     import(chrome.runtime.getURL("src/shared/extract.js")),
     import(chrome.runtime.getURL("src/shared/account.js")),
     import(chrome.runtime.getURL("src/shared/syncIntegrity.js")),
     import(chrome.runtime.getURL("src/shared/importExport.js")),
-    import(chrome.runtime.getURL("src/shared/recentSync.js"))
+    import(chrome.runtime.getURL("src/shared/recentSync.js")),
+    import(chrome.runtime.getURL("src/utils/format.js")),
+    import(chrome.runtime.getURL("src/shared/order.js"))
   ]);
 
   const {
@@ -28,6 +30,8 @@
   const { isSuspiciouslySmallSync } = syncIntegrityModule;
   const { mergeRecentRecords } = importExportModule;
   const { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } = recentSyncModule;
+  const { formatConversationCount, formatNumber, getShortcutLabel } = formatModule;
+  const { compareRecordOrder } = orderModule;
 
   const state = {
     accountId: null,
@@ -44,77 +48,184 @@
     documentTitleChangedAt: 0,
     toastTimer: null
   };
+  const shortcutLabel = getShortcutLabel();
+
+  const icon = {
+    database: svg(`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`),
+    download: svg(`<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
+    help: svg(`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>`),
+    refresh: svg(`<path d="M3 12a9 9 0 0 1 14.9-6.8L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-14.9 6.8L3 16"/><path d="M3 21v-5h5"/>`),
+    search: svg(`<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>`, "cgcs-entry-icon cgcs-icon"),
+    sparkles: svg(`<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>`),
+    trash: svg(`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>`),
+    upload: svg(`<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>`),
+    x: svg(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)
+  };
 
   const root = document.createElement("div");
   root.id = "cgcs-root";
   root.innerHTML = `
     <button class="cgcs-entry" type="button" title="Search conversations">
-      <svg class="cgcs-entry-icon lucide lucide-search-icon lucide-search" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+      ${icon.search}
       <span>Search</span>
+      <kbd class="cgcs-shortcut">${shortcutLabel}</kbd>
     </button>
     <div class="cgcs-modal-backdrop" hidden>
       <section class="cgcs-modal" role="dialog" aria-modal="true" aria-label="Conversation search">
         <div class="cgcs-toolbar">
-          <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
-          <button class="cgcs-small cgcs-quick-sync" type="button" title="Sync recent conversations">Quick</button>
-          <button class="cgcs-small cgcs-sync" type="button">Sync</button>
+          <div class="cgcs-input-wrap">
+            <input class="cgcs-input" type="search" placeholder="Search conversations" autocomplete="off" />
+            <button class="cgcs-clear-search" type="button" title="Clear search" aria-label="Clear search" hidden>${icon.x}</button>
+          </div>
+          <div class="cgcs-sync-actions" aria-label="Sync actions">
+            <button class="cgcs-small cgcs-primary cgcs-quick-sync" type="button" title="Adds new or changed conversations from the top of the sidebar.">${icon.refresh}<span>Sync recent</span></button>
+            <button class="cgcs-small cgcs-sync" type="button" title="Scans the full sidebar and rebuilds the local index.">${icon.database}<span>Full sync</span></button>
+          </div>
         </div>
-        <div class="cgcs-status"></div>
+        <div class="cgcs-status-row">
+          <div class="cgcs-status"></div>
+          <button class="cgcs-icon-button cgcs-info" type="button" title="Explain index actions" aria-label="Explain index actions">
+            ${icon.help}
+          </button>
+        </div>
+        <div class="cgcs-empty-state" hidden></div>
         <ol class="cgcs-results"></ol>
         <div class="cgcs-actions">
-          <button class="cgcs-small cgcs-import" type="button">Import</button>
-          <button class="cgcs-small cgcs-export" type="button">Export</button>
-          <button class="cgcs-small cgcs-reset" type="button">Clear</button>
+          <button class="cgcs-small cgcs-import" type="button" title="Import">${icon.upload}<span>Import</span></button>
+          <button class="cgcs-small cgcs-export" type="button" title="Export">${icon.download}<span>Export</span></button>
+          <button class="cgcs-small cgcs-danger cgcs-reset" type="button" title="Clear index">${icon.trash}<span>Clear index</span></button>
+        </div>
+      </section>
+    </div>
+    <div class="cgcs-help-backdrop" hidden>
+      <section class="cgcs-help-dialog" role="dialog" aria-modal="true" aria-labelledby="cgcs-help-title">
+        <div class="cgcs-help-header">
+          <h2 id="cgcs-help-title">Index actions</h2>
+          <button class="cgcs-icon-button cgcs-help-close" type="button" title="Close" aria-label="Close">
+            ${icon.x}
+          </button>
+        </div>
+        <div class="cgcs-help-list" role="list">
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.sparkles}</span>
+            <div class="cgcs-help-copy">
+              <h3>Automatic indexing</h3>
+              <p>Chats you open or start are saved to the local index automatically. You usually do not need to sync manually.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.refresh}</span>
+            <div class="cgcs-help-copy">
+              <h3>Sync recent</h3>
+              <p>Adds new or changed conversations from the top of the sidebar. Best for everyday updates.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.database}</span>
+            <div class="cgcs-help-copy">
+              <h3>Full sync</h3>
+              <p>Scans the full sidebar and rebuilds the local index for the current ChatGPT account.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.upload}</span>
+            <div class="cgcs-help-copy">
+              <h3>Import</h3>
+              <p>Loads a previously exported JSON backup into the local browser index.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.download}</span>
+            <div class="cgcs-help-copy">
+              <h3>Export</h3>
+              <p>Downloads the local index as JSON. Conversation contents are not included.</p>
+            </div>
+          </article>
+          <article class="cgcs-help-card is-danger" role="listitem">
+            <span class="cgcs-help-icon" aria-hidden="true">${icon.trash}</span>
+            <div class="cgcs-help-copy">
+              <h3>Clear index</h3>
+              <p>Deletes only this account's local search index after confirmation. It does not delete ChatGPT conversations.</p>
+            </div>
+          </article>
         </div>
       </section>
     </div>
     <div class="cgcs-sync-overlay" hidden>
       <div class="cgcs-sync-card">
-        <strong class="cgcs-sync-title">Syncing conversations</strong>
-        <p class="cgcs-sync-detail">Preparing...</p>
-        <button class="cgcs-cancel" type="button">Cancel</button>
+        <div class="cgcs-sync-visual" aria-hidden="true"></div>
+        <strong class="cgcs-sync-title">Preparing sync</strong>
+        <p class="cgcs-sync-summary">Your current index stays unchanged until sync finishes.</p>
+        <p class="cgcs-sync-detail" role="status" aria-live="polite">Preparing...</p>
+        <button class="cgcs-cancel" type="button">${icon.x}<span>Cancel</span></button>
       </div>
     </div>
     <div class="cgcs-toast" role="status" hidden></div>
   `;
   document.documentElement.append(root);
 
+  function svg(paths, className = "cgcs-icon") {
+    return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+  }
+
   const entryButton = root.querySelector(".cgcs-entry");
   const modalBackdrop = root.querySelector(".cgcs-modal-backdrop");
+  const modal = root.querySelector(".cgcs-modal");
   const input = root.querySelector(".cgcs-input");
+  const clearSearchButton = root.querySelector(".cgcs-clear-search");
   const status = root.querySelector(".cgcs-status");
+  const emptyState = root.querySelector(".cgcs-empty-state");
   const toast = root.querySelector(".cgcs-toast");
   const resultsList = root.querySelector(".cgcs-results");
+  const infoButton = root.querySelector(".cgcs-info");
   const quickSyncButton = root.querySelector(".cgcs-quick-sync");
   const syncButton = root.querySelector(".cgcs-sync");
   const importButton = root.querySelector(".cgcs-import");
   const exportButton = root.querySelector(".cgcs-export");
   const resetButton = root.querySelector(".cgcs-reset");
+  const helpBackdrop = root.querySelector(".cgcs-help-backdrop");
+  const helpCloseButton = root.querySelector(".cgcs-help-close");
   const syncOverlay = root.querySelector(".cgcs-sync-overlay");
+  const syncVisual = root.querySelector(".cgcs-sync-visual");
+  const syncTitle = root.querySelector(".cgcs-sync-title");
+  const syncSummary = root.querySelector(".cgcs-sync-summary");
   const syncDetail = root.querySelector(".cgcs-sync-detail");
   const cancelButton = root.querySelector(".cgcs-cancel");
 
   entryButton.addEventListener("click", openSearch);
+  infoButton.addEventListener("click", openHelp);
   quickSyncButton.addEventListener("click", runRecentConversationSync);
   syncButton.addEventListener("click", runConversationSync);
   importButton.addEventListener("click", importIndex);
   exportButton.addEventListener("click", exportIndex);
   resetButton.addEventListener("click", resetIndex);
+  helpCloseButton.addEventListener("click", () => closeHelp());
   cancelButton.addEventListener("click", () => state.syncCancel?.());
   input.addEventListener("input", () => {
     state.query = input.value;
+    updateSearchClearButton();
     renderResults();
   });
+  clearSearchButton.addEventListener("click", clearSearch);
   input.addEventListener("keydown", handleSearchKeydown);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !modalBackdrop.hidden) {
+    if (event.key !== "Escape") return;
+    if (!helpBackdrop.hidden) {
+      event.preventDefault();
+      closeHelp();
+      return;
+    }
+    if (!modalBackdrop.hidden) {
       closeSearch();
     }
   });
 
   modalBackdrop.addEventListener("click", (event) => {
     if (event.target === modalBackdrop) closeSearch();
+  });
+  helpBackdrop.addEventListener("click", (event) => {
+    if (event.target === helpBackdrop) closeHelp();
   });
 
   chrome.runtime.onMessage.addListener((message) => {
@@ -127,6 +238,7 @@
   async function openSearch() {
     modalBackdrop.hidden = false;
     await refreshAccountAndRecords();
+    updateSearchClearButton();
     renderResults();
     input.focus();
     input.select();
@@ -141,7 +253,30 @@
   }
 
   function closeSearch() {
+    closeHelp({ restoreFocus: false });
     modalBackdrop.hidden = true;
+  }
+
+  function openHelp() {
+    helpBackdrop.hidden = false;
+    helpCloseButton.focus();
+  }
+
+  function closeHelp({ restoreFocus = true } = {}) {
+    helpBackdrop.hidden = true;
+    if (restoreFocus) infoButton.focus();
+  }
+
+  function clearSearch() {
+    input.value = "";
+    state.query = "";
+    updateSearchClearButton();
+    renderResults();
+    input.focus();
+  }
+
+  function updateSearchClearButton() {
+    clearSearchButton.hidden = input.value.length === 0;
   }
 
   function startAutomaticIndexing() {
@@ -264,13 +399,18 @@
     state.results = searchConversations(state.records, state.query, 30);
     state.selectedIndex = Math.min(state.selectedIndex, Math.max(0, state.results.length - 1));
     resultsList.replaceChildren();
+    const hasEmptyIndex = Boolean(state.accountId && state.records.length === 0);
+    modal.classList.toggle("is-empty", hasEmptyIndex);
+    emptyState.hidden = !hasEmptyIndex;
+    emptyState.textContent = "";
 
     if (!state.accountId) {
       status.textContent = "Can't identify this ChatGPT account. Open the account menu, then try again.";
       return;
     }
     if (state.records.length === 0) {
-      status.textContent = "No synced conversations yet. Run Sync to build the local index.";
+      status.textContent = "";
+      emptyState.textContent = "New chats are saved automatically. Use Full sync to bring in your existing sidebar history.";
       return;
     }
     if (state.results.length === 0) {
@@ -278,7 +418,7 @@
       return;
     }
 
-    status.textContent = `${state.records.length} indexed conversations`;
+    status.textContent = `${formatNumber(state.records.length)} indexed conversations`;
     for (const [index, result] of state.results.entries()) {
       const item = document.createElement("li");
       item.className = index === state.selectedIndex ? "is-selected" : "";
@@ -287,7 +427,7 @@
           <span class="cgcs-title"></span>
           <span class="cgcs-meta"></span>
         </button>
-        <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">Remove</button>
+        <button class="cgcs-delete" type="button" title="Remove from local index" aria-label="Remove from local index">${icon.trash}</button>
       `;
       item.querySelector(".cgcs-title").textContent = result.record.title;
       item.querySelector(".cgcs-meta").textContent = `#${(result.record.order ?? index) + 1}`;
@@ -348,6 +488,21 @@
     }, TOAST_STATUS_MS);
   }
 
+  function showSyncOverlay(mode) {
+    const isRecent = mode === "recent";
+    syncVisual.innerHTML = isRecent ? icon.refresh : icon.database;
+    syncTitle.textContent = isRecent ? "Syncing recent chats" : "Rebuilding search index";
+    syncSummary.textContent = isRecent
+      ? "Adding new sidebar chats without rebuilding everything."
+      : "Scanning your sidebar and refreshing the local search index.";
+    syncDetail.textContent = "Preparing your sidebar...";
+    syncOverlay.hidden = false;
+  }
+
+  function updateSyncDetail(message) {
+    syncDetail.textContent = message;
+  }
+
   async function runConversationSync() {
     state.accountId = await detectAccountIdentity(document);
     if (!state.accountId) {
@@ -368,7 +523,7 @@
     };
 
     try {
-      syncOverlay.hidden = false;
+      showSyncOverlay("full");
       scrollContainer.scrollTop = 0;
       await sleep(500);
       rememberVisibleRecords(scrollContainer, foundByUrl, state.accountId, syncedAt);
@@ -377,14 +532,14 @@
 
       await scanProjectSections(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
 
-      const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
+      const records = [...foundByUrl.values()].sort(compareRecordOrder);
       if (records.length === 0) throw new Error("Sync could not find sidebar conversations.");
       if (isSuspiciouslySmallSync(state.records.length, records.length)) {
-        throw new Error(`Sync found only ${records.length} conversations, but the current index has ${state.records.length}.`);
+        throw new Error(`Sync found only ${formatConversationCount(records.length)}, but the current index has ${formatConversationCount(state.records.length)}.`);
       }
       await sendMessage({ type: "records:replace", accountId: state.accountId, records });
       state.records = records;
-      status.textContent = `Synced ${records.length} conversations.`;
+      status.textContent = `Synced ${formatConversationCount(records.length)}.`;
       renderResults();
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
@@ -404,7 +559,7 @@
     }
     const scrollContainer = findSidebarScrollContainer();
     if (!scrollContainer) {
-      status.textContent = "Open the ChatGPT sidebar, then try quick sync again.";
+      status.textContent = "Open the ChatGPT sidebar, then try Sync recent again.";
       return;
     }
 
@@ -418,7 +573,7 @@
     };
 
     try {
-      syncOverlay.hidden = false;
+      showSyncOverlay("recent");
       scrollContainer.scrollTop = 0;
       await sleep(300);
 
@@ -430,7 +585,7 @@
         syncedAt,
         () => cancelled
       );
-      const records = [...foundByUrl.values()].sort((left, right) => left.order - right.order);
+      const records = [...foundByUrl.values()].sort(compareRecordOrder);
 
       if (records.length === 0) {
         status.textContent = hitKnownRecord
@@ -442,11 +597,11 @@
 
       await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
       state.records = mergeRecentRecords(state.records, records);
-      status.textContent = `Quick synced ${records.length} recent conversation${records.length === 1 ? "" : "s"}.`;
+      status.textContent = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
       renderResults();
     } catch (error) {
       status.textContent = error.message === "Sync canceled."
-        ? "Quick sync canceled. Previous index unchanged."
+        ? "Sync recent canceled. Previous index unchanged."
         : `${error.message} Previous index unchanged.`;
     } finally {
       syncOverlay.hidden = true;
@@ -478,7 +633,7 @@
       const result = await sendMessage({ type: "records:import", exportData });
       await refreshAccountAndRecords();
       renderResults();
-      status.textContent = `Imported ${result.imported} records.`;
+      status.textContent = `Imported ${formatConversationCount(result.imported, "record")}.`;
     });
     picker.click();
   }
@@ -564,8 +719,7 @@
         lastRecoveryAt = 0;
       }
 
-      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
-      syncDetail.textContent = `Finding conversations... ${foundByUrl.size} indexed. ${idleSeconds}/25s idle`;
+      updateSyncDetail(`Scanning your sidebar. Found ${formatConversationCount(foundByUrl.size)} so far.`);
 
       if (Date.now() - lastNewConversationAt >= CHAT_STALL_RECOVERY_MS && Date.now() - lastRecoveryAt >= CHAT_STALL_RECOVERY_MS) {
         lastRecoveryAt = Date.now();
@@ -604,8 +758,9 @@
       if (result.hitKnownLimit) return true;
       if (foundByUrl.size > beforeRecords) lastNewConversationAt = Date.now();
 
-      const idleSeconds = Math.floor((Date.now() - lastNewConversationAt) / 1000);
-      syncDetail.textContent = `Checking recent conversations... ${foundByUrl.size} new, ${consecutiveKnownCount}/${RECENT_KNOWN_STOP_THRESHOLD} known. ${idleSeconds}/5s idle`;
+      updateSyncDetail(foundByUrl.size === 0
+        ? "Looking for recent chats to add."
+        : `Looking for recent chats. Found ${formatConversationCount(foundByUrl.size)} to add.`);
 
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
@@ -640,7 +795,7 @@
       const clickedProjects = await clickVisibleProjectControls(scrollContainer, visitedProjects);
       rememberVisibleRecords(scrollContainer, foundByUrl, accountId, syncedAt);
 
-      syncDetail.textContent = `Checking projects... ${foundByUrl.size} indexed.`;
+      updateSyncDetail(`Checking project chats. Found ${formatConversationCount(foundByUrl.size)} so far.`);
       quietPasses = clickedProjects === 0 && foundByUrl.size === beforeRecords ? quietPasses + 1 : 0;
       scrollContainer.scrollTop += getSidebarScrollStep(scrollContainer);
       await sleep(SCROLL_SETTLE_MS);
@@ -652,7 +807,7 @@
   }
 
   async function recoverStalledConversationScroll(scrollContainer, isCancelled) {
-    syncDetail.textContent = "Finding conversations... nudging sidebar to load more.";
+    updateSyncDetail("Still scanning. Gently nudging the sidebar to load more chats.");
     const scrollStep = getSidebarScrollStep(scrollContainer);
 
     scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - Math.floor(scrollStep * 0.8));

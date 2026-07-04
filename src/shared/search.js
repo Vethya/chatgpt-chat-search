@@ -1,3 +1,5 @@
+import { compareRecordOrder } from "./order.js";
+
 export function normalizeText(value) {
   return String(value || "")
     .toLowerCase()
@@ -62,7 +64,7 @@ function typoScore(titleToken, queryToken) {
 }
 
 function compareByOrder(left, right) {
-  return (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER);
+  return compareRecordOrder(left, right, Number.MAX_SAFE_INTEGER);
 }
 
 function isSubsequence(needle, haystack) {

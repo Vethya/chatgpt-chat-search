@@ -1,6 +1,11 @@
+import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
+
 const statusElement = document.querySelector("#status");
 const openSearchButton = document.querySelector("#open-search");
 const openChatGptButton = document.querySelector("#open-chatgpt");
+const shortcutLabelElement = document.querySelector("#shortcut-label");
+
+shortcutLabelElement.textContent = getShortcutLabel();
 
 openSearchButton.addEventListener("click", openSearch);
 openChatGptButton.addEventListener("click", () => chrome.tabs.create({ url: "https://chatgpt.com/" }));
@@ -75,16 +80,6 @@ function renderMessage(message) {
   statusElement.className = "status-card status-message";
   statusElement.title = "";
   statusElement.textContent = message;
-}
-
-function formatConversationLabel(count) {
-  const safeCount = Number.isFinite(count) ? count : 0;
-  return `conversation${safeCount === 1 ? "" : "s"}`;
-}
-
-function formatNumber(value) {
-  const safeValue = Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat().format(safeValue);
 }
 
 function formatRelativeLastSynced(lastSyncedAt, now = Date.now()) {
