@@ -1,4 +1,4 @@
 (async () => {
-  const { startContentScript } = await import(chrome.runtime.getURL("src/content/bootstrap.js"));
+  const { startContentScript } = await import("./content/bootstrap.js");
   await startContentScript();
 })();

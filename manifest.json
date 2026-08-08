@@ -6,34 +6,28 @@
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://chatgpt.com/*"],
   "background": {
-    "service_worker": "src/serviceWorker.js",
+    "service_worker": "dist/serviceWorker.js",
     "type": "module"
   },
   "action": {
     "default_title": "ChatGPT Conversation Search",
-    "default_popup": "src/popup.html"
+    "default_popup": "dist/popup.html"
   },
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*"],
-      "js": ["src/contentScript.js"],
+      "js": ["dist/contentScript.js"],
       "css": [
-        "src/content/styles/base.css",
-        "src/content/styles/entry.css",
-        "src/content/styles/modal.css",
-        "src/content/styles/results.css",
-        "src/content/styles/help.css",
-        "src/content/styles/sync.css",
-        "src/content/styles/toast.css",
-        "src/content/styles/responsive.css"
+        "dist/content/styles/base.css",
+        "dist/content/styles/entry.css",
+        "dist/content/styles/modal.css",
+        "dist/content/styles/results.css",
+        "dist/content/styles/help.css",
+        "dist/content/styles/sync.css",
+        "dist/content/styles/toast.css",
+        "dist/content/styles/responsive.css"
       ],
       "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["src/content/*.js", "src/shared/*.js", "src/utils/*.js"],
-      "matches": ["https://chatgpt.com/*"]
     }
   ],
   "commands": {

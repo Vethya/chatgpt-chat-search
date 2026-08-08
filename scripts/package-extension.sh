@@ -14,6 +14,7 @@ dist_dir="dist"
 zip_name="chatgpt-conversation-search-${date_stamp}-v${version}.zip"
 zip_path="${dist_dir}/${zip_name}"
 
+npm run build
 npm test
 npm run check
 
@@ -22,7 +23,7 @@ rm -f "$zip_path"
 
 COPYFILE_DISABLE=1 zip -qr "$zip_path" \
   manifest.json \
-  src \
+  dist \
   README.md \
   -x "*.DS_Store"
 

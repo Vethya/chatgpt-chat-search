@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"]
+  },
+  "include": ["src/serviceWorker.js", "src/shared/importExport.js", "src/shared/order.js", "src/shared/types.ts"]
+}
