@@ -63,7 +63,7 @@ export interface ServiceWorkerResultMap {
   "records:reset": { count: number };
   "records:export": IndexExport;
   "records:import": { imported: number };
-  "status:get": { count: number; lastSyncedAt: number };
+  "status:get": { count: number; lastSyncedAt?: number };
   "status:listAccounts": AccountStatus[];
 }
 
