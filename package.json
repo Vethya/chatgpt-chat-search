@@ -7,7 +7,7 @@
   "scripts": {
     "pretest": "npm run build",
     "test": "node --import tsx --test tests/*.test.ts",
-    "check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "build": "node scripts/build-extension.mjs",
     "package": "./scripts/package-extension.sh"
   },
