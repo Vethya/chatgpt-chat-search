@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Local Chromium extension for fast ChatGPT conversation title search.",
   "scripts": {
+    "pretest": "npm run build",
     "test": "node --import tsx --test tests/*.test.ts",
     "check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "build": "node scripts/build-extension.mjs",

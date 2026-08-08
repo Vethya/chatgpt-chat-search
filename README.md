@@ -52,7 +52,6 @@ The extension stores its index in your browser. It does not send your conversati
 Build the extension, run the test suite, and typecheck:
 
 ```sh
-npm run build
 npm test
 npm run check
 ```
