@@ -6,12 +6,18 @@ import {
   sanitizeRecord
 } from "./shared/importExport.js";
 import { compareRecordOrder } from "./shared/order.js";
+import { isServiceWorkerRequest } from "./shared/types.js";
+import type { AccountStatus, ConversationRecord, IndexExport, ServiceWorkerRequest } from "./shared/types.js";
 
 const DB_NAME = "chatgpt-conversation-search";
 const DB_VERSION = 1;
 const STORE = "conversations";
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isServiceWorkerRequest(message)) {
+    sendResponse({ ok: false, error: `Unknown message type: ${String(message?.type)}` });
+    return;
+  }
   handleMessage(message)
     .then((data) => sendResponse({ ok: true, data }))
     .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
@@ -26,8 +32,8 @@ chrome.commands?.onCommand?.addListener(async (command) => {
   }
 });
 
-async function handleMessage(message) {
-  switch (message?.type) {
+async function handleMessage(message: ServiceWorkerRequest) {
+  switch (message.type) {
     case "records:list":
       return listRecords(message.accountId);
     case "records:replace":
@@ -47,11 +53,11 @@ async function handleMessage(message) {
     case "status:listAccounts":
       return listAccountStatuses();
     default:
-      throw new Error(`Unknown message type: ${message?.type}`);
+      throw new Error("Unknown message type.");
   }
 }
 
-async function openDb() {
+async function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error);
@@ -67,10 +73,10 @@ async function openDb() {
   });
 }
 
-async function listRecords(accountId) {
+async function listRecords(accountId: string): Promise<ConversationRecord[]> {
   requireAccountId(accountId);
   const db = await openDb();
-  return runTransaction(db, "readonly", (store, resolve, reject) => {
+  return runTransaction<ConversationRecord[]>(db, "readonly", (store, resolve, reject) => {
     const index = store.index("accountId");
     const request = index.getAll(accountId);
     request.onerror = () => reject(request.error);
@@ -78,11 +84,14 @@ async function listRecords(accountId) {
   });
 }
 
-async function replaceAccountRecords(accountId, records) {
+async function replaceAccountRecords(
+  accountId: string,
+  records: ConversationRecord[]
+): Promise<{ count: number }> {
   requireAccountId(accountId);
   const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
   const db = await openDb();
-  await runTransaction(db, "readwrite", (store, resolve, reject) => {
+  await runTransaction<void>(db, "readwrite", (store, _resolve, reject) => {
     const index = store.index("accountId");
     const request = index.openKeyCursor(IDBKeyRange.only(accountId));
     request.onerror = () => reject(request.error);
@@ -100,7 +109,10 @@ async function replaceAccountRecords(accountId, records) {
   return { count: cleanRecords.length };
 }
 
-async function upsertAccountRecords(accountId, records) {
+async function upsertAccountRecords(
+  accountId: string,
+  records: ConversationRecord[]
+): Promise<{ count: number; upserted: number }> {
   requireAccountId(accountId);
   const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
   if (cleanRecords.length === 0) return { count: (await listRecords(accountId)).length, upserted: 0 };
@@ -111,7 +123,10 @@ async function upsertAccountRecords(accountId, records) {
   return { count: merged.length, upserted: cleanRecords.length };
 }
 
-async function deleteAccountRecord(accountId, url) {
+async function deleteAccountRecord(
+  accountId: string,
+  url: string
+): Promise<{ count: number; deleted: boolean }> {
   requireAccountId(accountId);
   if (!url) throw new Error("Missing conversation URL.");
 
@@ -126,19 +141,19 @@ async function deleteAccountRecord(accountId, url) {
   return { count: remaining.length, deleted: true };
 }
 
-async function resetAccountRecords(accountId) {
+async function resetAccountRecords(accountId: string): Promise<{ count: number }> {
   requireAccountId(accountId);
   const db = await openDb();
   await deleteAccountRecords(db, accountId);
   return { count: 0 };
 }
 
-async function exportAccountRecords(accountId) {
+async function exportAccountRecords(accountId: string): Promise<IndexExport> {
   const records = await listRecords(accountId);
   return createIndexExport(accountId, records);
 }
 
-async function importRecords(exportData) {
+async function importRecords(exportData: IndexExport | string): Promise<{ imported: number }> {
   const parsed = parseIndexExport(exportData);
   const db = await openDb();
   const accountIds = [...new Set(parsed.records.map((record) => record.accountId))];
@@ -155,7 +170,7 @@ async function importRecords(exportData) {
   return { imported };
 }
 
-async function getStatus(accountId) {
+async function getStatus(accountId: string): Promise<{ count: number; lastSyncedAt?: number }> {
   if (!accountId) return { count: 0 };
   const records = await listRecords(accountId);
   return {
@@ -164,14 +179,14 @@ async function getStatus(accountId) {
   };
 }
 
-async function listAccountStatuses() {
+async function listAccountStatuses(): Promise<AccountStatus[]> {
   const db = await openDb();
-  const records = await runTransaction(db, "readonly", (store, resolve, reject) => {
+  const records = await runTransaction<ConversationRecord[]>(db, "readonly", (store, resolve, reject) => {
     const request = store.getAll();
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
   });
-  const byAccountId = new Map();
+  const byAccountId = new Map<string, AccountStatus>();
 
   for (const record of records) {
     const status = byAccountId.get(record.accountId) || {
@@ -189,8 +204,8 @@ async function listAccountStatuses() {
   );
 }
 
-async function deleteAccountRecords(db, accountId) {
-  return runTransaction(db, "readwrite", (store, resolve, reject) => {
+async function deleteAccountRecords(db: IDBDatabase, accountId: string): Promise<void> {
+  await runTransaction<void>(db, "readwrite", (store, _resolve, reject) => {
     const index = store.index("accountId");
     const request = index.openKeyCursor(IDBKeyRange.only(accountId));
     request.onerror = () => reject(request.error);
@@ -203,13 +218,21 @@ async function deleteAccountRecords(db, accountId) {
   });
 }
 
-function runTransaction(db, mode, operation) {
-  return new Promise((resolve, reject) => {
+function runTransaction<T>(
+  db: IDBDatabase,
+  mode: IDBTransactionMode,
+  operation: (
+    store: IDBObjectStore,
+    resolve: (value: T) => void,
+    reject: (reason?: unknown) => void
+  ) => void
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
     const transaction = db.transaction(STORE, mode);
     const store = transaction.objectStore(STORE);
     let settled = false;
     transaction.oncomplete = () => {
-      if (!settled) resolve();
+      if (!settled) resolve(undefined as T);
     };
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
@@ -224,6 +247,6 @@ function runTransaction(db, mode, operation) {
   });
 }
 
-function requireAccountId(accountId) {
+function requireAccountId(accountId: string): void {
   if (!accountId) throw new Error("Missing account identity.");
 }

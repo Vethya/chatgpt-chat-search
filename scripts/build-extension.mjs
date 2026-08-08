@@ -27,7 +27,7 @@ await build({
 await build({
   ...common,
   entryPoints: {
-    serviceWorker: path.join(srcDir, "serviceWorker.js"),
+    serviceWorker: path.join(srcDir, "serviceWorker.ts"),
     popup: path.join(srcDir, "popup.js")
   },
   format: "esm",
