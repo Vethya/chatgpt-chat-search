@@ -7,11 +7,35 @@ import {
 } from "./shared/importExport.js";
 import { compareRecordOrder } from "./shared/order.js";
 import { isServiceWorkerRequest } from "./shared/types.js";
-import type { AccountStatus, ConversationRecord, IndexExport, ServiceWorkerRequest } from "./shared/types.js";
+import type {
+  AccountStatus,
+  ConversationRecord,
+  IndexExport,
+  ServiceWorkerRequest,
+  ServiceWorkerResultMap
+} from "./shared/types.js";
 
 const DB_NAME = "chatgpt-conversation-search";
 const DB_VERSION = 1;
 const STORE = "conversations";
+
+type ServiceWorkerHandlers = {
+  [K in ServiceWorkerRequest["type"]]: (
+    message: Extract<ServiceWorkerRequest, { type: K }>
+  ) => Promise<ServiceWorkerResultMap[K]>;
+};
+
+const MESSAGE_HANDLERS = {
+  "records:list": (message) => listRecords(message.accountId),
+  "records:replace": (message) => replaceAccountRecords(message.accountId, message.records),
+  "records:upsert": (message) => upsertAccountRecords(message.accountId, message.records),
+  "records:delete": (message) => deleteAccountRecord(message.accountId, message.url),
+  "records:reset": (message) => resetAccountRecords(message.accountId),
+  "records:export": (message) => exportAccountRecords(message.accountId),
+  "records:import": (message) => importRecords(message.exportData),
+  "status:get": (message) => getStatus(message.accountId),
+  "status:listAccounts": () => listAccountStatuses()
+} satisfies ServiceWorkerHandlers;
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isServiceWorkerRequest(message)) {
@@ -35,29 +59,10 @@ chrome.commands?.onCommand?.addListener(async (command) => {
   }
 });
 
-async function handleMessage(message: ServiceWorkerRequest) {
-  switch (message.type) {
-    case "records:list":
-      return listRecords(message.accountId);
-    case "records:replace":
-      return replaceAccountRecords(message.accountId, message.records || []);
-    case "records:upsert":
-      return upsertAccountRecords(message.accountId, message.records || []);
-    case "records:delete":
-      return deleteAccountRecord(message.accountId, message.url);
-    case "records:reset":
-      return resetAccountRecords(message.accountId);
-    case "records:export":
-      return exportAccountRecords(message.accountId);
-    case "records:import":
-      return importRecords(message.exportData);
-    case "status:get":
-      return getStatus(message.accountId);
-    case "status:listAccounts":
-      return listAccountStatuses();
-    default:
-      throw new Error("Unknown message type.");
-  }
+function handleMessage(
+  message: ServiceWorkerRequest
+): Promise<ServiceWorkerResultMap[ServiceWorkerRequest["type"]]> {
+  return MESSAGE_HANDLERS[message.type](message as never);
 }
 
 async function openDb(): Promise<IDBDatabase> {
