@@ -1,8 +1,75 @@
+import type { ConversationRecord } from "../shared/types.js";
+
 const CONVERSATION_LIST_IDLE_TIMEOUT_MS = 25000;
 const CHAT_STALL_RECOVERY_MS = 8000;
 const RECENT_LIST_IDLE_TIMEOUT_MS = 5000;
 const SCROLL_SETTLE_MS = 1100;
 const SIDEBAR_SCROLL_RATIO = 0.55;
+
+export interface SidebarScannerDeps {
+  compareRecordOrder: (left: ConversationRecord, right: ConversationRecord, fallbackOrder?: number) => number;
+  extractConversationAnchorTitle: (anchor: HTMLAnchorElement | null | undefined) => string | null;
+  extractConversationRecordsFromDocument: (
+    documentRef: ParentNode,
+    accountId: string,
+    syncedAt: number,
+    origin: string,
+    options?: { requireVisible?: boolean }
+  ) => ConversationRecord[];
+  formatConversationCount: (count: number, label?: string) => string;
+  getAnchorHref: (anchor: HTMLAnchorElement | null | undefined) => string | null;
+  locationRef?: Location;
+  normalizeConversationUrl: (href: string | null | undefined, origin?: string) => string | null;
+  rememberRecentVisibleRecords: (
+    visibleRecords: ConversationRecord[],
+    foundByUrl: Map<string, ConversationRecord>,
+    knownUrls: Set<string>,
+    visitedUrls: Set<string>,
+    consecutiveKnownCount: number,
+    stopThreshold?: number
+  ) => { hitKnownLimit: boolean; consecutiveKnownCount: number };
+  sleep: (ms: number) => Promise<void>;
+  updateSyncDetail: (message: string) => void;
+}
+
+export interface SidebarScanner {
+  findSidebarScrollContainer(): Element | null;
+  getSortedRecords(foundByUrl: Map<string, ConversationRecord>): ConversationRecord[];
+  rememberVisibleRecords(
+    rootElement: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number
+  ): void;
+  scanConversationList(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void>;
+  scanProjectSections(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void>;
+  scanRecentConversationList(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    knownUrls: Set<string>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean,
+    stopThreshold: number
+  ): Promise<boolean>;
+}
+
+interface SectionLabel {
+  text: string;
+  top: number;
+}
 
 export function createSidebarScanner({
   compareRecordOrder,
@@ -15,18 +82,18 @@ export function createSidebarScanner({
   rememberRecentVisibleRecords,
   sleep,
   updateSyncDetail
-}) {
-  function findSidebarScrollContainer() {
-    const conversationLink = Array.from(document.querySelectorAll("a[href]")).find((anchor) =>
+}: SidebarScannerDeps): SidebarScanner {
+  function findSidebarScrollContainer(): Element | null {
+    const conversationLink = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]")).find((anchor) =>
       anchor.href.includes("/c/") && isUsableConversationAnchor(anchor)
     );
-    const candidates = [
+    const candidates: Element[] = [
       document.querySelector("nav"),
       document.querySelector("aside"),
       conversationLink?.closest("nav"),
       conversationLink?.closest("aside"),
       conversationLink?.parentElement
-    ].filter(Boolean);
+    ].filter((element): element is HTMLElement => Boolean(element));
 
     let current = conversationLink?.parentElement;
     while (current && current !== document.body) {
@@ -37,7 +104,12 @@ export function createSidebarScanner({
     return candidates.find((element) => element.scrollHeight > element.clientHeight + 20) || null;
   }
 
-  function rememberVisibleRecords(rootElement, foundByUrl, accountId, syncedAt) {
+  function rememberVisibleRecords(
+    rootElement: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number
+  ): void {
     const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, locationRef.origin, {
       requireVisible: true
     });
@@ -47,7 +119,16 @@ export function createSidebarScanner({
     }
   }
 
-  function rememberVisibleRecentRecords(rootElement, foundByUrl, knownUrls, visitedUrls, accountId, syncedAt, consecutiveKnownCount, stopThreshold) {
+  function rememberVisibleRecentRecords(
+    rootElement: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    knownUrls: Set<string>,
+    visitedUrls: Set<string>,
+    accountId: string,
+    syncedAt: number,
+    consecutiveKnownCount: number,
+    stopThreshold: number
+  ): { hitKnownLimit: boolean; consecutiveKnownCount: number } {
     const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, locationRef.origin, {
       requireVisible: true
     }).map((record) => ({ ...record, syncedAt }));
@@ -62,7 +143,13 @@ export function createSidebarScanner({
     );
   }
 
-  async function scanConversationList(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
+  async function scanConversationList(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void> {
     scrollToSection(scrollContainer, "chats");
     await sleep(SCROLL_SETTLE_MS);
 
@@ -93,13 +180,21 @@ export function createSidebarScanner({
     }
   }
 
-  async function scanRecentConversationList(scrollContainer, foundByUrl, knownUrls, accountId, syncedAt, isCancelled, stopThreshold) {
+  async function scanRecentConversationList(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    knownUrls: Set<string>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean,
+    stopThreshold: number
+  ): Promise<boolean> {
     scrollToSection(scrollContainer, "chats");
     await sleep(SCROLL_SETTLE_MS);
 
     let lastNewConversationAt = Date.now();
     let consecutiveKnownCount = 0;
-    const visitedUrls = new Set();
+    const visitedUrls = new Set<string>();
 
     while (Date.now() - lastNewConversationAt < RECENT_LIST_IDLE_TIMEOUT_MS) {
       if (isCancelled()) throw new Error("Sync canceled.");
@@ -131,8 +226,8 @@ export function createSidebarScanner({
     return false;
   }
 
-  async function expandShowMoreControls(scrollContainer) {
-    const controls = Array.from(scrollContainer.querySelectorAll("button, [role='button'], summary"));
+  async function expandShowMoreControls(scrollContainer: Element): Promise<number> {
+    const controls = Array.from(scrollContainer.querySelectorAll<HTMLElement>("button, [role='button'], summary"));
     let expandedCount = 0;
 
     for (const control of controls) {
@@ -145,8 +240,14 @@ export function createSidebarScanner({
     return expandedCount;
   }
 
-  async function scanProjectSections(scrollContainer, foundByUrl, accountId, syncedAt, isCancelled) {
-    const visitedProjects = new Set();
+  async function scanProjectSections(
+    scrollContainer: Element,
+    foundByUrl: Map<string, ConversationRecord>,
+    accountId: string,
+    syncedAt: number,
+    isCancelled: () => boolean
+  ): Promise<void> {
+    const visitedProjects = new Set<string>();
     scrollContainer.scrollTop = 0;
     await sleep(300);
 
@@ -164,15 +265,15 @@ export function createSidebarScanner({
     }
   }
 
-  function getSortedRecords(foundByUrl) {
+  function getSortedRecords(foundByUrl: Map<string, ConversationRecord>): ConversationRecord[] {
     return [...foundByUrl.values()].sort(compareRecordOrder);
   }
 
-  function getSidebarScrollStep(scrollContainer) {
+  function getSidebarScrollStep(scrollContainer: Element): number {
     return Math.max(160, Math.floor(scrollContainer.clientHeight * SIDEBAR_SCROLL_RATIO));
   }
 
-  async function recoverStalledConversationScroll(scrollContainer, isCancelled) {
+  async function recoverStalledConversationScroll(scrollContainer: Element, isCancelled: () => boolean): Promise<void> {
     updateSyncDetail("Still scanning. Gently nudging the sidebar to load more chats.");
     const scrollStep = getSidebarScrollStep(scrollContainer);
 
@@ -188,7 +289,7 @@ export function createSidebarScanner({
     await sleep(SCROLL_SETTLE_MS);
   }
 
-  function scrollToSection(scrollContainer, sectionName) {
+  function scrollToSection(scrollContainer: Element, sectionName: string): boolean {
     const heading = findVisibleSectionHeading(scrollContainer, [sectionName]);
     if (!heading) return false;
 
@@ -198,8 +299,8 @@ export function createSidebarScanner({
     return true;
   }
 
-  async function clickVisibleProjectControls(scrollContainer, visitedProjects) {
-    const controls = Array.from(scrollContainer.querySelectorAll("a[href], button, [role='button']"));
+  async function clickVisibleProjectControls(scrollContainer: Element, visitedProjects: Set<string>): Promise<number> {
+    const controls = Array.from(scrollContainer.querySelectorAll<HTMLElement>("a[href], button, [role='button']"));
     const labels = getVisibleSectionLabels(scrollContainer);
     let clicked = 0;
 
@@ -216,7 +317,7 @@ export function createSidebarScanner({
     return clicked;
   }
 
-  function isShowMoreControl(control) {
+  function isShowMoreControl(control: HTMLElement): boolean {
     if (!control || control.closest("#cgcs-root")) return false;
     if (control.closest("a[href*='/c/']")) return false;
     if (!isVisible(control)) return false;
@@ -230,7 +331,7 @@ export function createSidebarScanner({
     return isShowMore && !opensMenu && !menuLike;
   }
 
-  function isProjectControl(control, scrollContainer, labels) {
+  function isProjectControl(control: HTMLElement, scrollContainer: Element, labels: SectionLabel[]): boolean {
     if (!control || control.closest("#cgcs-root")) return false;
 
     const text = compactText(control.textContent);
@@ -250,15 +351,21 @@ export function createSidebarScanner({
     return rect.width >= 48 && rect.height >= 20;
   }
 
-  function isInsideProjectsArea(element, scrollContainer, labels) {
+  function isInsideProjectsArea(element: Element, scrollContainer: Element, labels: SectionLabel[]): boolean {
     return isInsideSectionArea(element, scrollContainer, ["projects"], ["chats"], labels);
   }
 
-  function isInsidePinnedArea(element, scrollContainer, labels) {
+  function isInsidePinnedArea(element: Element, scrollContainer: Element, labels: SectionLabel[]): boolean {
     return isInsideSectionArea(element, scrollContainer, ["pinned"], ["projects", "chats"], labels);
   }
 
-  function isInsideSectionArea(element, scrollContainer, startSections, endSections, labels) {
+  function isInsideSectionArea(
+    element: Element,
+    scrollContainer: Element,
+    startSections: string[],
+    endSections: string[],
+    labels: SectionLabel[]
+  ): boolean {
     const elementTop = element.getBoundingClientRect().top;
     const activeLabels = labels || getVisibleSectionLabels(scrollContainer);
     const sectionHeadings = activeLabels.filter((label) => startSections.includes(label.text) && label.top <= elementTop);
@@ -269,13 +376,13 @@ export function createSidebarScanner({
     return !nextEndHeading || elementTop < nextEndHeading.top;
   }
 
-  function findVisibleSectionHeading(scrollContainer, sectionNames) {
+  function findVisibleSectionHeading(scrollContainer: Element, sectionNames: string[]): Element | null {
     return Array.from(scrollContainer.querySelectorAll("div, span, h2, h3, p"))
       .filter(isVisible)
-      .find((node) => sectionNames.includes(compactText(node.textContent)));
+      .find((node) => sectionNames.includes(compactText(node.textContent))) || null;
   }
 
-  function getVisibleSectionLabels(scrollContainer) {
+  function getVisibleSectionLabels(scrollContainer: Element): SectionLabel[] {
     return Array.from(scrollContainer.querySelectorAll("div, span, h2, h3, p"))
       .filter(isVisible)
       .map((node) => ({
@@ -284,7 +391,7 @@ export function createSidebarScanner({
       }));
   }
 
-  function isUsableConversationAnchor(anchor) {
+  function isUsableConversationAnchor(anchor: HTMLAnchorElement): boolean {
     if (!anchor || anchor.closest("#cgcs-root")) return false;
     if (!isVisible(anchor)) return false;
     if (!normalizeConversationUrl(getAnchorHref(anchor), locationRef.origin)) return false;
@@ -301,15 +408,15 @@ export function createSidebarScanner({
   };
 }
 
-function isProjectHref(href) {
+function isProjectHref(href: string): boolean {
   return /project|\/g\//i.test(href);
 }
 
-export function compactText(value) {
+export function compactText(value: string | null | undefined): string {
   return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-export function isVisible(element) {
+export function isVisible(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0;
 }

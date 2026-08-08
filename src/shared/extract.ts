@@ -7,7 +7,7 @@ export interface ExtractOptions {
 }
 
 export function extractConversationRecordsFromDocument(
-  documentRef: Document,
+  documentRef: ParentNode,
   accountId: string,
   syncedAt: number,
   origin: string,
@@ -67,17 +67,19 @@ export function normalizeConversationUrl(
   return `${parsed.origin}${match[0]}`;
 }
 
-export function hasConversationLinks(documentRef: Document): boolean {
+export function hasConversationLinks(documentRef: ParentNode): boolean {
   return Array.from(documentRef.querySelectorAll<HTMLAnchorElement>("a[href]")).some((anchor) =>
     Boolean(normalizeConversationUrl(getAnchorHref(anchor), location.origin))
   );
 }
 
-export function extractConversationAnchorTitle(anchor: HTMLAnchorElement): string | null {
+export function extractConversationAnchorTitle(
+  anchor: HTMLAnchorElement | null | undefined
+): string | null {
   const values = [
-    anchor.getAttribute?.("aria-label"),
-    anchor.getAttribute?.("title"),
-    anchor.textContent
+    anchor?.getAttribute?.("aria-label"),
+    anchor?.getAttribute?.("title"),
+    anchor?.textContent
   ];
 
   return values

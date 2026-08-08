@@ -1,10 +1,5 @@
 import { compareRecordOrder } from "./order.js";
-import type { ConversationRecord } from "./types.js";
-
-export interface SearchResult {
-  record: ConversationRecord;
-  score: number;
-}
+import type { ConversationRecord, SearchResult } from "./types.js";
 
 export function normalizeText(value: string | null | undefined): string {
   return String(value || "")

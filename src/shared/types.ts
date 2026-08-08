@@ -8,6 +8,26 @@ export interface ConversationRecord {
   syncedAt: number;
 }
 
+export interface SearchResult {
+  record: ConversationRecord;
+  score: number;
+}
+
+export interface ContentScriptState {
+  accountId: string | null;
+  records: ConversationRecord[];
+  results: SearchResult[];
+  selectedIndex: number;
+  query: string;
+  syncCancel: (() => void) | null;
+  autoIndexTimer: number | null;
+  lastAutoIndexedKey: string;
+  currentConversationUrl: string;
+  conversationUrlChangedAt: number;
+  lastDocumentTitle: string;
+  documentTitleChangedAt: number;
+}
+
 export interface AccountStatus {
   accountId: string;
   count: number;
@@ -48,6 +68,12 @@ export interface ServiceWorkerResultMap {
 export type ServiceResponse<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export type UiMessage = { type: "ui:openSearch" } | { type: "ui:toggleSearch" };
+
+export function isUiMessage(value: unknown): value is UiMessage {
+  return typeof value === "object" && value !== null &&
+    ((value as { type?: unknown }).type === "ui:openSearch" ||
+      (value as { type?: unknown }).type === "ui:toggleSearch");
+}
 
 const SERVICE_WORKER_REQUEST_TYPES: ReadonlySet<string> = new Set([
   "records:list",

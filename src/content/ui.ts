@@ -1,8 +1,58 @@
+import type { IconRegistry } from "./icons.js";
+
 const TOAST_STATUS_MS = 2000;
 const TOAST_EXIT_MS = 180;
 
-export function createContentUi({ documentRef = document, icon, shortcutLabel }) {
-  const toastIcons = {
+export type ToastTone = "info" | "warning" | "success" | "error";
+
+export interface ContentUiDeps {
+  documentRef?: Document;
+  icon: IconRegistry;
+  shortcutLabel: string;
+}
+
+export interface ContentUiElements {
+  root: HTMLDivElement;
+  entryButton: HTMLButtonElement;
+  modalBackdrop: HTMLDivElement;
+  modal: HTMLElement;
+  input: HTMLInputElement;
+  clearSearchButton: HTMLButtonElement;
+  status: HTMLElement;
+  emptyState: HTMLElement;
+  toast: HTMLElement;
+  toastIcon: HTMLElement;
+  toastMessage: HTMLElement;
+  resultsList: HTMLOListElement;
+  infoButton: HTMLButtonElement;
+  quickSyncButton: HTMLButtonElement;
+  syncButton: HTMLButtonElement;
+  importButton: HTMLButtonElement;
+  exportButton: HTMLButtonElement;
+  resetButton: HTMLButtonElement;
+  helpBackdrop: HTMLDivElement;
+  helpCloseButton: HTMLButtonElement;
+  syncOverlay: HTMLDivElement;
+  syncVisual: HTMLElement;
+  syncTitle: HTMLElement;
+  syncSummary: HTMLElement;
+  syncDetail: HTMLElement;
+  cancelButton: HTMLButtonElement;
+}
+
+export interface ContentUi extends ContentUiElements {
+  closeSearch(): void;
+  openHelp(): void;
+  closeHelp(options?: { restoreFocus?: boolean }): void;
+  updateSearchClearButton(): void;
+  showToast(message: string, tone?: ToastTone): void;
+  showSyncOverlay(mode: "recent" | "full"): void;
+  updateSyncDetail(message: string): void;
+  setActionButtonsDisabled(disabled: boolean): void;
+}
+
+export function createContentUi({ documentRef = document, icon, shortcutLabel }: ContentUiDeps): ContentUi {
+  const toastIcons: Record<ToastTone, string> = {
     error: icon.xCircle,
     info: icon.infoCircle,
     success: icon.checkCircle,
@@ -114,37 +164,37 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
   `;
   documentRef.documentElement.append(root);
 
-  const elements = {
+  const elements: ContentUiElements = {
     root,
-    entryButton: root.querySelector(".cgcs-entry"),
-    modalBackdrop: root.querySelector(".cgcs-modal-backdrop"),
-    modal: root.querySelector(".cgcs-modal"),
-    input: root.querySelector(".cgcs-input"),
-    clearSearchButton: root.querySelector(".cgcs-clear-search"),
-    status: root.querySelector(".cgcs-status"),
-    emptyState: root.querySelector(".cgcs-empty-state"),
-    toast: root.querySelector(".cgcs-toast"),
-    toastIcon: root.querySelector(".cgcs-toast-icon"),
-    toastMessage: root.querySelector(".cgcs-toast-message"),
-    resultsList: root.querySelector(".cgcs-results"),
-    infoButton: root.querySelector(".cgcs-info"),
-    quickSyncButton: root.querySelector(".cgcs-quick-sync"),
-    syncButton: root.querySelector(".cgcs-sync"),
-    importButton: root.querySelector(".cgcs-import"),
-    exportButton: root.querySelector(".cgcs-export"),
-    resetButton: root.querySelector(".cgcs-reset"),
-    helpBackdrop: root.querySelector(".cgcs-help-backdrop"),
-    helpCloseButton: root.querySelector(".cgcs-help-close"),
-    syncOverlay: root.querySelector(".cgcs-sync-overlay"),
-    syncVisual: root.querySelector(".cgcs-sync-visual"),
-    syncTitle: root.querySelector(".cgcs-sync-title"),
-    syncSummary: root.querySelector(".cgcs-sync-summary"),
-    syncDetail: root.querySelector(".cgcs-sync-detail"),
-    cancelButton: root.querySelector(".cgcs-cancel")
+    entryButton: requiredChild(root, ".cgcs-entry"),
+    modalBackdrop: requiredChild(root, ".cgcs-modal-backdrop"),
+    modal: requiredChild(root, ".cgcs-modal"),
+    input: requiredChild(root, ".cgcs-input"),
+    clearSearchButton: requiredChild(root, ".cgcs-clear-search"),
+    status: requiredChild(root, ".cgcs-status"),
+    emptyState: requiredChild(root, ".cgcs-empty-state"),
+    toast: requiredChild(root, ".cgcs-toast"),
+    toastIcon: requiredChild(root, ".cgcs-toast-icon"),
+    toastMessage: requiredChild(root, ".cgcs-toast-message"),
+    resultsList: requiredChild(root, ".cgcs-results"),
+    infoButton: requiredChild(root, ".cgcs-info"),
+    quickSyncButton: requiredChild(root, ".cgcs-quick-sync"),
+    syncButton: requiredChild(root, ".cgcs-sync"),
+    importButton: requiredChild(root, ".cgcs-import"),
+    exportButton: requiredChild(root, ".cgcs-export"),
+    resetButton: requiredChild(root, ".cgcs-reset"),
+    helpBackdrop: requiredChild(root, ".cgcs-help-backdrop"),
+    helpCloseButton: requiredChild(root, ".cgcs-help-close"),
+    syncOverlay: requiredChild(root, ".cgcs-sync-overlay"),
+    syncVisual: requiredChild(root, ".cgcs-sync-visual"),
+    syncTitle: requiredChild(root, ".cgcs-sync-title"),
+    syncSummary: requiredChild(root, ".cgcs-sync-summary"),
+    syncDetail: requiredChild(root, ".cgcs-sync-detail"),
+    cancelButton: requiredChild(root, ".cgcs-cancel")
   };
 
-  let toastTimer = null;
-  let toastExitTimer = null;
+  let toastTimer: number | null = null;
+  let toastExitTimer: number | null = null;
 
   return {
     ...elements,
@@ -163,7 +213,7 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
     updateSearchClearButton() {
       elements.clearSearchButton.hidden = elements.input.value.length === 0;
     },
-    showToast(message, tone = "info") {
+    showToast(message: string, tone: ToastTone = "info") {
       if (toastTimer) window.clearTimeout(toastTimer);
       if (toastExitTimer) window.clearTimeout(toastExitTimer);
       elements.toast.className = `cgcs-toast is-${tone}`;
@@ -182,7 +232,7 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
         }, TOAST_EXIT_MS);
       }, TOAST_STATUS_MS);
     },
-    showSyncOverlay(mode) {
+    showSyncOverlay(mode: "recent" | "full") {
       const isRecent = mode === "recent";
       elements.syncVisual.innerHTML = isRecent ? icon.refresh : icon.database;
       elements.syncTitle.textContent = isRecent ? "Syncing recent chats" : "Rebuilding search index";
@@ -192,14 +242,20 @@ export function createContentUi({ documentRef = document, icon, shortcutLabel })
       elements.syncDetail.textContent = "Preparing your sidebar...";
       elements.syncOverlay.hidden = false;
     },
-    updateSyncDetail(message) {
+    updateSyncDetail(message: string) {
       elements.syncDetail.textContent = message;
     },
-    setActionButtonsDisabled(disabled) {
+    setActionButtonsDisabled(disabled: boolean) {
       for (const button of [elements.quickSyncButton, elements.syncButton, elements.importButton, elements.exportButton, elements.resetButton]) {
         button.disabled = disabled;
         button.classList.toggle("is-busy", disabled);
       }
     }
   };
+}
+
+function requiredChild<T extends Element>(root: Element, selector: string): T {
+  const element = root.querySelector<T>(selector);
+  if (!element) throw new Error(`Missing UI element: ${selector}`);
+  return element;
 }

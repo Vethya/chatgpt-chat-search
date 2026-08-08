@@ -12,6 +12,8 @@ import { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } from "../sh
 import { searchConversations } from "../shared/search.js";
 import { isSuspiciouslySmallSync } from "../shared/syncIntegrity.js";
 import { applyThemeAttribute, CHATGPT_THEME_STORAGE_KEY, detectChatGptTheme } from "../shared/theme.js";
+import { isUiMessage } from "../shared/types.js";
+import type { ContentScriptState } from "../shared/types.js";
 import { formatConversationCount, formatNumber, getShortcutLabel } from "../utils/format.js";
 import { createContentActions } from "./actions.js";
 import { createAutoIndexer } from "./autoIndex.js";
@@ -21,8 +23,8 @@ import { createSidebarScanner } from "./sidebarScan.js";
 import { createSyncController } from "./sync.js";
 import { createContentUi } from "./ui.js";
 
-export async function startContentScript() {
-  const state = {
+export async function startContentScript(): Promise<void> {
+  const state: ContentScriptState = {
     accountId: null,
     records: [],
     results: [],
@@ -124,11 +126,19 @@ export async function startContentScript() {
   });
 
   chrome.runtime.onMessage.addListener((message) => {
-    if (message?.type === "ui:openSearch") actions.openSearch();
-    if (message?.type === "ui:toggleSearch") actions.toggleSearch();
+    if (!isUiMessage(message)) return;
+    if (message.type === "ui:openSearch") actions.openSearch();
+    else actions.toggleSearch();
   });
 
   autoIndexer.startAutomaticIndexing();
+}
+
+interface SyncThemeOptions {
+  documentRef?: Document;
+  root: Element;
+  storageArea?: chrome.storage.LocalStorageArea;
+  windowRef?: Window;
 }
 
 function syncTheme({
@@ -136,7 +146,7 @@ function syncTheme({
   root,
   storageArea = chrome.storage?.local,
   windowRef = window
-} = {}) {
+}: SyncThemeOptions): void {
   const detectedTheme = detectChatGptTheme(documentRef, windowRef);
   if (!detectedTheme) return;
 

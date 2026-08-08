@@ -1,4 +1,30 @@
 import { MSG_MISSING_ACCOUNT } from "./actions.js";
+import { describeError, sendMessage, sleep } from "./runtime.js";
+import type { SidebarScanner } from "./sidebarScan.js";
+import type { ContentUi } from "./ui.js";
+import type { ContentScriptState, ConversationRecord } from "../shared/types.js";
+
+export interface SyncControllerDeps {
+  detectAccountIdentity: (documentRef: Document) => Promise<string | null>;
+  formatConversationCount: (count: number, label?: string) => string;
+  isSuspiciouslySmallSync: (previousCount: number, nextCount: number) => boolean;
+  mergeRecentRecords: (
+    existingRecords: ConversationRecord[],
+    incomingRecords: ConversationRecord[]
+  ) => ConversationRecord[];
+  recentKnownStopThreshold: number;
+  scanner: SidebarScanner;
+  sendMessage: typeof sendMessage;
+  sleep: (ms: number) => Promise<void>;
+  state: ContentScriptState;
+  ui: ContentUi;
+  renderResults: () => void;
+}
+
+export interface SyncController {
+  runConversationSync(): Promise<void>;
+  runRecentConversationSync(): Promise<void>;
+}
 
 export function createSyncController({
   detectAccountIdentity,
@@ -7,15 +33,16 @@ export function createSyncController({
   mergeRecentRecords,
   recentKnownStopThreshold,
   scanner,
-  sendMessage,
-  sleep,
+  sendMessage: send,
+  sleep: wait,
   state,
   ui,
   renderResults
-}) {
-  async function runConversationSync() {
+}: SyncControllerDeps): SyncController {
+  async function runConversationSync(): Promise<void> {
     state.accountId = await detectAccountIdentity(document);
-    if (!state.accountId) {
+    const accountId = state.accountId;
+    if (!accountId) {
       ui.status.textContent = MSG_MISSING_ACCOUNT;
       ui.showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
@@ -29,7 +56,7 @@ export function createSyncController({
     }
 
     const syncedAt = Date.now();
-    const foundByUrl = new Map();
+    const foundByUrl = new Map<string, ConversationRecord>();
     let cancelled = false;
     state.syncCancel = () => {
       cancelled = true;
@@ -39,29 +66,31 @@ export function createSyncController({
       ui.setActionButtonsDisabled(true);
       ui.showSyncOverlay("full");
       scrollContainer.scrollTop = 0;
-      await sleep(500);
-      scanner.rememberVisibleRecords(scrollContainer, foundByUrl, state.accountId, syncedAt);
+      await wait(500);
+      scanner.rememberVisibleRecords(scrollContainer, foundByUrl, accountId, syncedAt);
 
-      await scanner.scanConversationList(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
-      await scanner.scanProjectSections(scrollContainer, foundByUrl, state.accountId, syncedAt, () => cancelled);
+      await scanner.scanConversationList(scrollContainer, foundByUrl, accountId, syncedAt, () => cancelled);
+      await scanner.scanProjectSections(scrollContainer, foundByUrl, accountId, syncedAt, () => cancelled);
 
       const records = scanner.getSortedRecords(foundByUrl);
       if (records.length === 0) throw new Error("Sync could not find sidebar conversations.");
       if (isSuspiciouslySmallSync(state.records.length, records.length)) {
         throw new Error(`Sync found only ${formatConversationCount(records.length)}, but the current index has ${formatConversationCount(state.records.length)}.`);
       }
-      await sendMessage({ type: "records:replace", accountId: state.accountId, records });
+      await send({ type: "records:replace", accountId, records });
       state.records = records;
       const message = `Synced ${formatConversationCount(records.length)}.`;
       ui.status.textContent = message;
       renderResults();
       ui.showToast(message, "success");
     } catch (error) {
-      const message = error.message === "Sync canceled."
+      const detail = describeError(error);
+      const isCanceled = detail === "Sync canceled.";
+      const message = isCanceled
         ? "Sync canceled. Previous index unchanged."
-        : `${error.message} Previous index unchanged.`;
+        : `${detail} Previous index unchanged.`;
       ui.status.textContent = message;
-      ui.showToast(message, error.message === "Sync canceled." ? "warning" : "error");
+      ui.showToast(message, isCanceled ? "warning" : "error");
     } finally {
       ui.syncOverlay.hidden = true;
       state.syncCancel = null;
@@ -69,9 +98,10 @@ export function createSyncController({
     }
   }
 
-  async function runRecentConversationSync() {
+  async function runRecentConversationSync(): Promise<void> {
     state.accountId = await detectAccountIdentity(document);
-    if (!state.accountId) {
+    const accountId = state.accountId;
+    if (!accountId) {
       ui.status.textContent = MSG_MISSING_ACCOUNT;
       ui.showToast(MSG_MISSING_ACCOUNT, "warning");
       return;
@@ -84,10 +114,10 @@ export function createSyncController({
       return;
     }
 
-    state.records = await sendMessage({ type: "records:list", accountId: state.accountId });
+    state.records = await send({ type: "records:list", accountId });
     const knownUrls = new Set(state.records.map((record) => record.url));
     const syncedAt = Date.now();
-    const foundByUrl = new Map();
+    const foundByUrl = new Map<string, ConversationRecord>();
     let cancelled = false;
     state.syncCancel = () => {
       cancelled = true;
@@ -97,13 +127,13 @@ export function createSyncController({
       ui.setActionButtonsDisabled(true);
       ui.showSyncOverlay("recent");
       scrollContainer.scrollTop = 0;
-      await sleep(300);
+      await wait(300);
 
       const hitKnownRecord = await scanner.scanRecentConversationList(
         scrollContainer,
         foundByUrl,
         knownUrls,
-        state.accountId,
+        accountId,
         syncedAt,
         () => cancelled,
         recentKnownStopThreshold
@@ -120,18 +150,20 @@ export function createSyncController({
         return;
       }
 
-      await sendMessage({ type: "records:upsert", accountId: state.accountId, records });
+      await send({ type: "records:upsert", accountId, records });
       state.records = mergeRecentRecords(state.records, records);
       const message = `Synced ${formatConversationCount(records.length, "recent conversation")}.`;
       ui.status.textContent = message;
       renderResults();
       ui.showToast(message, "success");
     } catch (error) {
-      const message = error.message === "Sync canceled."
+      const detail = describeError(error);
+      const isCanceled = detail === "Sync canceled.";
+      const message = isCanceled
         ? "Sync recent canceled. Previous index unchanged."
-        : `${error.message} Previous index unchanged.`;
+        : `${detail} Previous index unchanged.`;
       ui.status.textContent = message;
-      ui.showToast(message, error.message === "Sync canceled." ? "warning" : "error");
+      ui.showToast(message, isCanceled ? "warning" : "error");
     } finally {
       ui.syncOverlay.hidden = true;
       state.syncCancel = null;

@@ -19,7 +19,7 @@ await mkdir(outdir, { recursive: true });
 
 await build({
   ...common,
-  entryPoints: { contentScript: path.join(srcDir, "contentScript.js") },
+  entryPoints: { contentScript: path.join(srcDir, "contentScript.ts") },
   format: "iife",
   outdir
 });
