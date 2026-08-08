@@ -15,7 +15,10 @@ const STORE = "conversations";
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isServiceWorkerRequest(message)) {
-    sendResponse({ ok: false, error: `Unknown message type: ${String(message?.type)}` });
+    const type = message && typeof message === "object" && "type" in message
+      ? String(message.type)
+      : "undefined";
+    sendResponse({ ok: false, error: `Invalid message: ${type}` });
     return;
   }
   handleMessage(message)

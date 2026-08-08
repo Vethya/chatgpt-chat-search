@@ -186,15 +186,23 @@ test("returns structured errors for invalid messages", async (t) => {
 
   assert.deepEqual(await worker.sendRaw({ type: "records:list" }), {
     ok: false,
-    error: "Missing account identity."
+    error: "Invalid message: records:list"
   });
   assert.deepEqual(await worker.sendRaw({ type: "missing:type" }), {
     ok: false,
-    error: "Unknown message type: missing:type"
+    error: "Invalid message: missing:type"
   });
-  assert.deepEqual(await worker.sendRaw({ type: "status:get" }), {
-    ok: true,
-    data: { count: 0 }
+  assert.deepEqual(await worker.sendRaw({ type: "records:replace", accountId: "id:user" }), {
+    ok: false,
+    error: "Invalid message: records:replace"
+  });
+  assert.deepEqual(await worker.sendRaw({ type: "records:delete", accountId: "id:user" }), {
+    ok: false,
+    error: "Invalid message: records:delete"
+  });
+  assert.deepEqual(await worker.sendRaw({ type: "records:import", exportData: null }), {
+    ok: false,
+    error: "Invalid message: records:import"
   });
   assert.deepEqual(await worker.send({ type: "records:upsert", accountId: "id:user", records: [] }), {
     count: 0,

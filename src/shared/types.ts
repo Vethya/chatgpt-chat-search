@@ -91,6 +91,27 @@ const SERVICE_WORKER_REQUEST_TYPES: ReadonlySet<string> = new Set([
 
 export function isServiceWorkerRequest(value: unknown): value is ServiceWorkerRequest {
   if (!value || typeof value !== "object") return false;
-  const type = (value as { type?: unknown }).type;
-  return typeof type === "string" && SERVICE_WORKER_REQUEST_TYPES.has(type);
+  const message = value as Record<string, unknown>;
+  const type = message.type;
+  if (typeof type !== "string" || !SERVICE_WORKER_REQUEST_TYPES.has(type)) return false;
+
+  switch (type) {
+    case "records:list":
+    case "records:reset":
+    case "records:export":
+    case "status:get":
+      return typeof message.accountId === "string";
+    case "records:replace":
+    case "records:upsert":
+      return typeof message.accountId === "string" && Array.isArray(message.records);
+    case "records:delete":
+      return typeof message.accountId === "string" && typeof message.url === "string";
+    case "records:import":
+      return typeof message.exportData === "string" ||
+        (typeof message.exportData === "object" && message.exportData !== null);
+    case "status:listAccounts":
+      return true;
+    default:
+      return false;
+  }
 }
