@@ -8,8 +8,10 @@ export interface ConversationRecord {
   syncedAt: number;
 }
 
+export type SearchableRecord = Pick<ConversationRecord, "title" | "url"> & { order?: number };
+
 export interface SearchResult {
-  record: ConversationRecord;
+  record: SearchableRecord;
   score: number;
 }
 

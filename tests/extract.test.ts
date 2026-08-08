@@ -7,15 +7,15 @@ import {
   normalizeConversationUrl
 } from "../src/shared/extract.js";
 
-function anchor(href, text, attrs = {}) {
+function anchor(href: string, text: string, attrs: Record<string, unknown> = {}): HTMLAnchorElement {
   return {
-    href: attrs.resolvedHref || href,
+    href: typeof attrs.resolvedHref === "string" ? attrs.resolvedHref : href,
     textContent: text,
-    getAttribute(name) {
-      if (name === "href") return href;
-      return attrs[name] || null;
+    getAttribute(name: string): string | null {
+      const value = attrs[name];
+      return typeof value === "string" ? value : null;
     },
-    closest() {
+    closest(): HTMLElement | null {
       return null;
     },
     getBoundingClientRect() {
@@ -25,12 +25,12 @@ function anchor(href, text, attrs = {}) {
     },
     ownerDocument: {
       defaultView: {
-        getComputedStyle() {
+        getComputedStyle(): { display: string; visibility: string } {
           return { display: "block", visibility: "visible" };
         }
       }
     }
-  };
+  } as unknown as HTMLAnchorElement;
 }
 
 test("extracts unique conversation title records from anchors", () => {
@@ -147,7 +147,7 @@ test("prefers accessible titles and collapses whitespace", () => {
     "https://chatgpt.com"
   );
 
-  assert.equal(records[0].title, "Better accessible title");
+  assert.equal(records[0]?.title, "Better accessible title");
 });
 
 test("filters non-conversation sidebar labels", () => {
@@ -168,31 +168,31 @@ test("filters non-conversation sidebar labels", () => {
 
 test("extracts records from document-like objects", () => {
   const documentRef = {
-    querySelectorAll(selector) {
+    querySelectorAll(selector: string): HTMLAnchorElement[] {
       assert.equal(selector, "a[href]");
       return [anchor("/c/doc-1", "From document")];
     }
-  };
+  } as unknown as ParentNode;
 
   const records = extractConversationRecordsFromDocument(documentRef, "id:user-1", 222, "https://chatgpt.com");
-  assert.equal(records[0].url, "https://chatgpt.com/c/doc-1");
+  assert.equal(records[0]?.url, "https://chatgpt.com/c/doc-1");
 });
 
 test("detects whether a document has conversation links", () => {
   const previousLocation = globalThis.location;
-  globalThis.location = { origin: "https://chatgpt.com" };
+  globalThis.location = { origin: "https://chatgpt.com" } as unknown as Location;
 
   try {
     assert.equal(hasConversationLinks({
-      querySelectorAll() {
+      querySelectorAll(): HTMLAnchorElement[] {
         return [anchor("/settings", "Settings"), anchor("/c/has-link", "Has link")];
       }
-    }), true);
+    } as unknown as ParentNode), true);
     assert.equal(hasConversationLinks({
-      querySelectorAll() {
+      querySelectorAll(): HTMLAnchorElement[] {
         return [anchor("/settings", "Settings")];
       }
-    }), false);
+    } as unknown as ParentNode), false);
   } finally {
     globalThis.location = previousLocation;
   }

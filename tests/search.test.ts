@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeText, scoreTitle, searchConversations } from "../src/shared/search.js";
+import type { SearchableRecord } from "../src/shared/types.js";
 
-const records = [
+const records: SearchableRecord[] = [
   { title: "Building a Chrome extension", url: "https://chatgpt.com/c/1", order: 3 },
   { title: "IndexedDB schema migrations", url: "https://chatgpt.com/c/2", order: 1 },
   { title: "Conversation search ranking", url: "https://chatgpt.com/c/3", order: 2 }
@@ -10,12 +11,12 @@ const records = [
 
 test("fuzzy search tolerates partial words", () => {
   const [first] = searchConversations(records, "indx mig");
-  assert.equal(first.record.title, "IndexedDB schema migrations");
+  assert.equal(first?.record.title, "IndexedDB schema migrations");
 });
 
 test("fuzzy search tolerates a small typo", () => {
   const [first] = searchConversations(records, "conversaton");
-  assert.equal(first.record.title, "Conversation search ranking");
+  assert.equal(first?.record.title, "Conversation search ranking");
 });
 
 test("empty search returns sidebar order", () => {
@@ -34,7 +35,7 @@ test("normalizes accents and punctuation", () => {
     { title: "Resume GPT 5 notes", url: "https://chatgpt.com/c/4", order: 0 }
   ], "résumé");
 
-  assert.equal(first.record.title, "Resume GPT 5 notes");
+  assert.equal(first?.record.title, "Resume GPT 5 notes");
 });
 
 test("exact title matches outrank typo matches", () => {
@@ -43,7 +44,7 @@ test("exact title matches outrank typo matches", () => {
     { title: "Chrome", url: "https://chatgpt.com/c/5", order: 1 }
   ], "chrome");
 
-  assert.equal(results[0].record.url, "https://chatgpt.com/c/5");
+  assert.equal(results[0]?.record.url, "https://chatgpt.com/c/5");
 });
 
 test("scores acronym and subsequence matches", () => {

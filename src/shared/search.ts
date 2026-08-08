@@ -1,5 +1,5 @@
 import { compareRecordOrder } from "./order.js";
-import type { ConversationRecord, SearchResult } from "./types.js";
+import type { SearchableRecord, SearchResult } from "./types.js";
 
 export function normalizeText(value: string | null | undefined): string {
   return String(value || "")
@@ -11,7 +11,7 @@ export function normalizeText(value: string | null | undefined): string {
 }
 
 export function searchConversations(
-  records: ConversationRecord[],
+  records: SearchableRecord[],
   query: string | null | undefined,
   limit = 20
 ): SearchResult[] {
@@ -68,7 +68,7 @@ function typoScore(titleToken: string, queryToken: string): number {
   return 0;
 }
 
-function compareByOrder(left: ConversationRecord, right: ConversationRecord): number {
+function compareByOrder(left: SearchableRecord, right: SearchableRecord): number {
   return compareRecordOrder(left, right, Number.MAX_SAFE_INTEGER);
 }
 

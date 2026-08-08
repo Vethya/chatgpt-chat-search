@@ -5,11 +5,12 @@ import {
   RECENT_KNOWN_STOP_THRESHOLD,
   rememberRecentVisibleRecords
 } from "../src/shared/recentSync.js";
+import type { ConversationRecord } from "../src/shared/types.js";
 
 test("recent sync does not stop at the first known conversation", () => {
-  const foundByUrl = new Map();
+  const foundByUrl = new Map<string, ConversationRecord>();
   const knownUrls = new Set(["https://chatgpt.com/c/known"]);
-  const visitedUrls = new Set();
+  const visitedUrls = new Set<string>();
 
   const result = rememberRecentVisibleRecords(
     [
@@ -28,11 +29,11 @@ test("recent sync does not stop at the first known conversation", () => {
 });
 
 test("recent sync stops after ten distinct known conversations in a row", () => {
-  const foundByUrl = new Map();
+  const foundByUrl = new Map<string, ConversationRecord>();
   const knownUrls = new Set(
     Array.from({ length: RECENT_KNOWN_STOP_THRESHOLD }, (_, index) => `https://chatgpt.com/c/known-${index}`)
   );
-  const visitedUrls = new Set();
+  const visitedUrls = new Set<string>();
 
   const result = rememberRecentVisibleRecords(
     Array.from({ length: RECENT_KNOWN_STOP_THRESHOLD }, (_, index) => record(`known-${index}`, `Known ${index}`)),
@@ -48,9 +49,9 @@ test("recent sync stops after ten distinct known conversations in a row", () => 
 });
 
 test("recent sync ignores repeated visible known conversations", () => {
-  const foundByUrl = new Map();
+  const foundByUrl = new Map<string, ConversationRecord>();
   const knownUrls = new Set(["https://chatgpt.com/c/known"]);
-  const visitedUrls = new Set();
+  const visitedUrls = new Set<string>();
 
   let result = rememberRecentVisibleRecords(
     [record("known", "Known")],
@@ -71,7 +72,7 @@ test("recent sync ignores repeated visible known conversations", () => {
   assert.equal(result.consecutiveKnownCount, 1);
 });
 
-function record(id, title) {
+function record(id: string, title: string): ConversationRecord {
   return {
     accountId: "id:user",
     url: `https://chatgpt.com/c/${id}`,

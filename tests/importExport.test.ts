@@ -7,6 +7,7 @@ import {
   parseIndexExport,
   sanitizeRecord
 } from "../src/shared/importExport.js";
+import type { ConversationRecord, IndexExport } from "../src/shared/types.js";
 
 test("creates and parses index export without raw email", () => {
   const exported = createIndexExport("email-sha256:abc", [
@@ -47,7 +48,7 @@ test("merges imported records by URL and keeps newer title", () => {
   );
 
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].title, "Renamed title");
+  assert.equal(merged[0]?.title, "Renamed title");
 });
 
 test("keeps existing imported record when incoming duplicate is older", () => {
@@ -72,13 +73,13 @@ test("keeps existing imported record when incoming duplicate is older", () => {
     ]
   );
 
-  assert.equal(merged[0].title, "Current title");
+  assert.equal(merged[0]?.title, "Current title");
 });
 
 test("rejects malformed exports", () => {
-  assert.throws(() => parseIndexExport({ kind: "other", version: 1, records: [] }), /not a ChatGPT/);
-  assert.throws(() => parseIndexExport({ kind: "chatgpt-conversation-search-index", version: 999, records: [] }), /Unsupported/);
-  assert.throws(() => parseIndexExport({ kind: "chatgpt-conversation-search-index", version: 1 }), /missing records/);
+  assert.throws(() => parseIndexExport({ kind: "other", version: 1, records: [] } as unknown as IndexExport), /not a ChatGPT/);
+  assert.throws(() => parseIndexExport({ kind: "chatgpt-conversation-search-index", version: 999, records: [] } as unknown as IndexExport), /Unsupported/);
+  assert.throws(() => parseIndexExport({ kind: "chatgpt-conversation-search-index", version: 1 } as unknown as IndexExport), /missing records/);
   assert.throws(() => parseIndexExport("{bad json"), SyntaxError);
 });
 
@@ -89,12 +90,12 @@ test("sanitizes record fields and rejects missing required values", () => {
     title: "Title",
     order: Number.NaN,
     syncedAt: Number.NaN
-  });
+  } as unknown as ConversationRecord);
 
   assert.equal(sanitized.accountId, "123");
   assert.equal(sanitized.order, 0);
   assert.equal(Number.isFinite(sanitized.syncedAt), true);
-  assert.throws(() => sanitizeRecord({ accountId: "id:user" }), /missing required/);
+  assert.throws(() => sanitizeRecord({ accountId: "id:user" } as unknown as ConversationRecord), /missing required/);
 });
 
 test("merges recent records at the top and preserves older order", () => {

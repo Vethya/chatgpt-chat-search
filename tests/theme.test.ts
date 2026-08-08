@@ -3,6 +3,52 @@ import assert from "node:assert/strict";
 
 import { detectChatGptTheme } from "../src/shared/theme.js";
 
+interface FakeDocumentOptions {
+  bodyBackgroundColor?: string;
+  className?: string;
+  colorScheme?: string;
+}
+
+interface StyledElement {
+  colorScheme?: string;
+  backgroundColor?: string;
+}
+
+function fakeDocument({
+  bodyBackgroundColor = "rgba(0, 0, 0, 0)",
+  className = "",
+  colorScheme = ""
+}: FakeDocumentOptions = {}): Document {
+  const classNames = new Set(className ? className.split(/\s+/) : []);
+  return {
+    body: { backgroundColor: bodyBackgroundColor },
+    documentElement: {
+      colorScheme,
+      dataset: {},
+      getAttribute(): string | null {
+        return null;
+      },
+      classList: {
+        contains(name: string) {
+          return classNames.has(name);
+        },
+        value: className
+      }
+    }
+  } as unknown as Document;
+}
+
+function fakeWindow(documentRef: Document): Window {
+  return {
+    getComputedStyle(element: Element): Record<string, string> {
+      const styled = element as unknown as StyledElement;
+      return element === documentRef.documentElement
+        ? { colorScheme: styled.colorScheme ?? "" }
+        : { backgroundColor: styled.backgroundColor ?? "" };
+    }
+  } as unknown as Window;
+}
+
 test("detects explicit ChatGPT theme classes", () => {
   assert.equal(detectChatGptTheme(fakeDocument({ className: "dark" })), "dark");
   assert.equal(detectChatGptTheme(fakeDocument({ className: "light" })), "light");
@@ -30,33 +76,3 @@ test("detects unambiguous computed color-scheme", () => {
   assert.equal(detectChatGptTheme(darkDocument, fakeWindow(darkDocument)), "dark");
   assert.equal(detectChatGptTheme(lightDocument, fakeWindow(lightDocument)), "light");
 });
-
-function fakeDocument({ bodyBackgroundColor = "rgba(0, 0, 0, 0)", className = "", colorScheme = "" } = {}) {
-  const classNames = new Set(className ? className.split(/\s+/) : []);
-  return {
-    body: { backgroundColor: bodyBackgroundColor },
-    documentElement: {
-      colorScheme,
-      dataset: {},
-      getAttribute() {
-        return null;
-      },
-      classList: {
-        contains(name) {
-          return classNames.has(name);
-        },
-        value: className
-      }
-    }
-  };
-}
-
-function fakeWindow(documentRef) {
-  return {
-    getComputedStyle(element) {
-      return element === documentRef.documentElement
-        ? { colorScheme: element.colorScheme }
-        : { backgroundColor: element.backgroundColor };
-    }
-  };
-}
