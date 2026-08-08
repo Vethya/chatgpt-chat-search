@@ -1,11 +1,16 @@
-export const CHATGPT_THEME_STORAGE_KEY = "chatgptTheme";
-export const DEFAULT_THEME = "light";
+import type { Theme } from "./types.js";
 
-export function normalizeTheme(value) {
+export const CHATGPT_THEME_STORAGE_KEY = "chatgptTheme";
+export const DEFAULT_THEME: Theme = "light";
+
+export function normalizeTheme(value: string | null | undefined): Theme | null {
   return value === "dark" || value === "light" ? value : null;
 }
 
-export function detectChatGptTheme(documentRef = globalThis.document, windowRef = globalThis.window) {
+export function detectChatGptTheme(
+  documentRef: Document | null | undefined = globalThis.document,
+  windowRef: Window | null | undefined = globalThis.window
+): Theme | null {
   const documentElement = documentRef?.documentElement;
   const explicitTheme = normalizeTheme(documentElement?.getAttribute?.("data-theme"))
     || normalizeTheme(documentElement?.dataset?.theme)
@@ -16,13 +21,17 @@ export function detectChatGptTheme(documentRef = globalThis.document, windowRef 
   return detectThemeFromColorScheme(documentElement, windowRef);
 }
 
-export function applyThemeAttribute(element, theme) {
+export function applyThemeAttribute(element: Element | null, theme: string | null | undefined): Theme {
   const normalizedTheme = normalizeTheme(theme) || DEFAULT_THEME;
   element?.setAttribute?.("data-cgcs-theme", normalizedTheme);
   return normalizedTheme;
 }
 
-export function applyPopupTheme(documentRef, theme, windowRef = globalThis.window) {
+export function applyPopupTheme(
+  documentRef: Document | null,
+  theme: string | null | undefined,
+  windowRef: Window | null | undefined = globalThis.window
+): Theme {
   const normalizedTheme = normalizeTheme(theme)
     || getPreferredTheme(documentRef)
     || getSystemTheme(windowRef)
@@ -31,19 +40,23 @@ export function applyPopupTheme(documentRef, theme, windowRef = globalThis.windo
   return normalizedTheme;
 }
 
-export function getPreferredTheme(documentRef = globalThis.document) {
+export function getPreferredTheme(
+  documentRef: Document | null | undefined = globalThis.document
+): Theme | null {
   return normalizeTheme(documentRef?.documentElement?.getAttribute?.("data-theme"))
     || normalizeTheme(documentRef?.documentElement?.dataset?.theme);
 }
 
-export function getSystemTheme(windowRef = globalThis.window) {
+export function getSystemTheme(
+  windowRef: Window | null | undefined = globalThis.window
+): Theme | null {
   if (typeof windowRef?.matchMedia !== "function") return null;
   if (windowRef.matchMedia("(prefers-color-scheme: dark)")?.matches) return "dark";
   if (windowRef.matchMedia("(prefers-color-scheme: light)")?.matches) return "light";
   return null;
 }
 
-function detectThemeFromClassList(classList) {
+function detectThemeFromClassList(classList: DOMTokenList | null | undefined): Theme | null {
   if (!classList) return null;
   if (classList.contains?.("dark")) return "dark";
   if (classList.contains?.("light")) return "light";
@@ -54,7 +67,10 @@ function detectThemeFromClassList(classList) {
   return null;
 }
 
-function detectThemeFromColorScheme(element, windowRef) {
+function detectThemeFromColorScheme(
+  element: Element | null | undefined,
+  windowRef: Window | null | undefined
+): Theme | null {
   const colorScheme = getComputedStyleValue(element, windowRef, "colorScheme");
   if (!colorScheme) return null;
   if (/\bdark\b/.test(colorScheme) && !/\blight\b/.test(colorScheme)) return "dark";
@@ -62,7 +78,12 @@ function detectThemeFromColorScheme(element, windowRef) {
   return null;
 }
 
-function getComputedStyleValue(element, windowRef, property) {
+function getComputedStyleValue(
+  element: Element | null | undefined,
+  windowRef: Window | null | undefined,
+  property: keyof CSSStyleDeclaration
+): string {
   if (!element || typeof windowRef?.getComputedStyle !== "function") return "";
-  return windowRef.getComputedStyle(element)?.[property] || "";
+  const value = windowRef.getComputedStyle(element)?.[property];
+  return typeof value === "string" ? value : "";
 }

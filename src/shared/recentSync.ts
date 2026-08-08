@@ -1,13 +1,20 @@
+import type { ConversationRecord } from "./types.js";
+
 export const RECENT_KNOWN_STOP_THRESHOLD = 20;
 
+export interface RecentVisibilityResult {
+  hitKnownLimit: boolean;
+  consecutiveKnownCount: number;
+}
+
 export function rememberRecentVisibleRecords(
-  visibleRecords,
-  foundByUrl,
-  knownUrls,
-  visitedUrls,
-  consecutiveKnownCount,
+  visibleRecords: ConversationRecord[],
+  foundByUrl: Map<string, ConversationRecord>,
+  knownUrls: Set<string>,
+  visitedUrls: Set<string>,
+  consecutiveKnownCount: number,
   stopThreshold = RECENT_KNOWN_STOP_THRESHOLD
-) {
+): RecentVisibilityResult {
   let nextConsecutiveKnownCount = consecutiveKnownCount;
 
   for (const record of visibleRecords) {

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["ES2022", "WebWorker"]
   },
-  "include": ["src/serviceWorker.js", "src/shared/importExport.js", "src/shared/order.js", "src/shared/types.ts"]
+  "include": ["src/serviceWorker.js", "src/shared/importExport.ts", "src/shared/order.ts", "src/shared/types.ts"]
 }

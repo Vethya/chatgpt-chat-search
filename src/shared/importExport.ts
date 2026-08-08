@@ -1,8 +1,13 @@
 import { compareRecordOrder } from "./order.js";
+import type { ConversationRecord, IndexExport } from "./types.js";
 
 export const EXPORT_VERSION = 1;
 
-export function createIndexExport(accountId, records, exportedAt = new Date().toISOString()) {
+export function createIndexExport(
+  accountId: string,
+  records: ConversationRecord[],
+  exportedAt = new Date().toISOString()
+): IndexExport {
   return {
     kind: "chatgpt-conversation-search-index",
     version: EXPORT_VERSION,
@@ -12,9 +17,12 @@ export function createIndexExport(accountId, records, exportedAt = new Date().to
   };
 }
 
-export function parseIndexExport(rawValue) {
-  const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
-  if (!parsed || parsed.kind !== "chatgpt-conversation-search-index") {
+export function parseIndexExport(rawValue: IndexExport | string): IndexExport {
+  const parsed = typeof rawValue === "string" ? (JSON.parse(rawValue) as IndexExport) : rawValue;
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("That file is not a ChatGPT Conversation Search export.");
+  }
+  if (parsed.kind !== "chatgpt-conversation-search-index") {
     throw new Error("That file is not a ChatGPT Conversation Search export.");
   }
   if (parsed.version !== EXPORT_VERSION) {
@@ -30,8 +38,11 @@ export function parseIndexExport(rawValue) {
   };
 }
 
-export function mergeRecordsByUrl(existingRecords, incomingRecords) {
-  const byUrl = new Map();
+export function mergeRecordsByUrl(
+  existingRecords: ConversationRecord[],
+  incomingRecords: ConversationRecord[]
+): ConversationRecord[] {
+  const byUrl = new Map<string, ConversationRecord>();
   for (const record of existingRecords) byUrl.set(record.url, sanitizeRecord(record));
   for (const record of incomingRecords) {
     const clean = sanitizeRecord(record);
@@ -41,7 +52,10 @@ export function mergeRecordsByUrl(existingRecords, incomingRecords) {
   return [...byUrl.values()].sort(compareRecordOrder);
 }
 
-export function mergeRecentRecords(existingRecords, incomingRecords) {
+export function mergeRecentRecords(
+  existingRecords: ConversationRecord[],
+  incomingRecords: ConversationRecord[]
+): ConversationRecord[] {
   const recent = dedupeRecordsByUrl(incomingRecords).sort(compareRecordOrder);
   const recentUrls = new Set(recent.map((record) => record.url));
   const older = existingRecords
@@ -52,7 +66,7 @@ export function mergeRecentRecords(existingRecords, incomingRecords) {
   return [...recent, ...older].map((record, order) => ({ ...record, order }));
 }
 
-export function sanitizeRecord(record) {
+export function sanitizeRecord(record: ConversationRecord): ConversationRecord {
   if (!record || !record.accountId || !record.url || !record.title) {
     throw new Error("Conversation record is missing required fields.");
   }
@@ -65,13 +79,16 @@ export function sanitizeRecord(record) {
   };
 }
 
-function chooseNewerRecord(previous, incoming) {
+function chooseNewerRecord(
+  previous: ConversationRecord | undefined,
+  incoming: ConversationRecord
+): ConversationRecord {
   if (!previous) return incoming;
   return incoming.syncedAt >= previous.syncedAt ? incoming : previous;
 }
 
-function dedupeRecordsByUrl(records) {
-  const byUrl = new Map();
+function dedupeRecordsByUrl(records: ConversationRecord[]): ConversationRecord[] {
+  const byUrl = new Map<string, ConversationRecord>();
   for (const record of records) {
     const clean = sanitizeRecord(record);
     const previous = byUrl.get(clean.url);

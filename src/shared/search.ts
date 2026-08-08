@@ -1,6 +1,12 @@
 import { compareRecordOrder } from "./order.js";
+import type { ConversationRecord } from "./types.js";
 
-export function normalizeText(value) {
+export interface SearchResult {
+  record: ConversationRecord;
+  score: number;
+}
+
+export function normalizeText(value: string | null | undefined): string {
   return String(value || "")
     .toLowerCase()
     .normalize("NFKD")
@@ -9,7 +15,11 @@ export function normalizeText(value) {
     .trim();
 }
 
-export function searchConversations(records, query, limit = 20) {
+export function searchConversations(
+  records: ConversationRecord[],
+  query: string | null | undefined,
+  limit = 20
+): SearchResult[] {
   const normalizedQuery = normalizeText(query);
   const sortedRecords = [...records].sort(compareByOrder);
 
@@ -24,7 +34,7 @@ export function searchConversations(records, query, limit = 20) {
     .slice(0, limit);
 }
 
-export function scoreTitle(title, normalizedQuery) {
+export function scoreTitle(title: string | null | undefined, normalizedQuery: string): number {
   const normalizedTitle = normalizeText(title);
   if (!normalizedTitle || !normalizedQuery) return 0;
   if (normalizedTitle === normalizedQuery) return 120;
@@ -36,7 +46,7 @@ export function scoreTitle(title, normalizedQuery) {
 
   const titleTokens = normalizedTitle.split(" ").filter(Boolean);
   const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const acronym = titleTokens.map((token) => token[0]).join("");
+  const acronym = titleTokens.map((token) => token.charAt(0)).join("");
 
   if (acronym.includes(normalizedQuery)) score += 24;
   if (isSubsequence(normalizedQuery, normalizedTitle)) score += Math.min(24, normalizedQuery.length * 2);
@@ -55,7 +65,7 @@ export function scoreTitle(title, normalizedQuery) {
   return score;
 }
 
-function typoScore(titleToken, queryToken) {
+function typoScore(titleToken: string, queryToken: string): number {
   if (queryToken.length < 3 || titleToken.length < 3) return 0;
   const distance = levenshtein(titleToken.slice(0, Math.max(queryToken.length, 4)), queryToken);
   if (distance === 1) return 18;
@@ -63,11 +73,11 @@ function typoScore(titleToken, queryToken) {
   return 0;
 }
 
-function compareByOrder(left, right) {
+function compareByOrder(left: ConversationRecord, right: ConversationRecord): number {
   return compareRecordOrder(left, right, Number.MAX_SAFE_INTEGER);
 }
 
-function isSubsequence(needle, haystack) {
+function isSubsequence(needle: string, haystack: string): boolean {
   let cursor = 0;
   for (const char of haystack) {
     if (char === needle[cursor]) cursor += 1;
@@ -76,7 +86,7 @@ function isSubsequence(needle, haystack) {
   return false;
 }
 
-function levenshtein(left, right) {
+function levenshtein(left: string, right: string): number {
   const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
   const current = Array.from({ length: right.length + 1 }, () => 0);
 
@@ -85,13 +95,13 @@ function levenshtein(left, right) {
     for (let column = 1; column <= right.length; column += 1) {
       const cost = left[row - 1] === right[column - 1] ? 0 : 1;
       current[column] = Math.min(
-        previous[column] + 1,
-        current[column - 1] + 1,
-        previous[column - 1] + cost
+        previous[column]! + 1,
+        current[column - 1]! + 1,
+        previous[column - 1]! + cost
       );
     }
     previous.splice(0, previous.length, ...current);
   }
 
-  return previous[right.length];
+  return previous[right.length]!;
 }

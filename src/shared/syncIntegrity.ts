@@ -1,4 +1,4 @@
-export function isSuspiciouslySmallSync(previousCount, nextCount) {
+export function isSuspiciouslySmallSync(previousCount: number, nextCount: number): boolean {
   if (!Number.isFinite(previousCount) || !Number.isFinite(nextCount)) return false;
   if (previousCount < 50) return false;
   return nextCount < Math.floor(previousCount * 0.6);
