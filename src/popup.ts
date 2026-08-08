@@ -1,10 +1,16 @@
 import { applyPopupTheme, CHATGPT_THEME_STORAGE_KEY, normalizeTheme } from "./shared/theme.js";
 import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
+import type {
+  AccountStatus,
+  ServiceResponse,
+  ServiceWorkerRequest,
+  ServiceWorkerResultMap
+} from "./shared/types.js";
 
-const statusElement = document.querySelector("#status");
-const openSearchButton = document.querySelector("#open-search");
-const openChatGptButton = document.querySelector("#open-chatgpt");
-const shortcutLabelElement = document.querySelector("#shortcut-label");
+const statusElement = requiredElement<HTMLElement>("#status");
+const openSearchButton = requiredElement<HTMLButtonElement>("#open-search");
+const openChatGptButton = requiredElement<HTMLButtonElement>("#open-chatgpt");
+const shortcutLabelElement = requiredElement<HTMLElement>("#shortcut-label");
 
 setupTheme();
 shortcutLabelElement.textContent = getShortcutLabel();
@@ -14,7 +20,7 @@ openChatGptButton.addEventListener("click", () => chrome.tabs.create({ url: "htt
 
 refreshStatus();
 
-async function openSearch() {
+async function openSearch(): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url?.startsWith("https://chatgpt.com/")) {
     await chrome.tabs.create({ url: "https://chatgpt.com/" });
@@ -29,7 +35,7 @@ async function openSearch() {
   }
 }
 
-async function refreshStatus() {
+async function refreshStatus(): Promise<void> {
   try {
     const statuses = await sendRuntimeMessage({ type: "status:listAccounts" });
     renderAccountStatuses(statuses);
@@ -38,14 +44,14 @@ async function refreshStatus() {
   }
 }
 
-function renderAccountStatuses(statuses) {
-  if (!Array.isArray(statuses) || statuses.length === 0) {
+function renderAccountStatuses(statuses: AccountStatus[]): void {
+  if (statuses.length === 0) {
     renderMessage("No indexed conversations yet.");
     return;
   }
 
   if (statuses.length === 1) {
-    const [status] = statuses;
+    const status = statuses[0]!;
     statusElement.className = "status-card status-card-single";
     statusElement.title = formatExactLastSynced(status.lastSyncedAt);
     statusElement.innerHTML = `
@@ -78,13 +84,13 @@ function renderAccountStatuses(statuses) {
   `;
 }
 
-function renderMessage(message, tone = "info") {
+function renderMessage(message: string, tone: "info" | "warning" = "info"): void {
   statusElement.className = `status-card status-message is-${tone}`;
   statusElement.title = "";
   statusElement.textContent = message;
 }
 
-function formatRelativeLastSynced(lastSyncedAt, now = Date.now()) {
+function formatRelativeLastSynced(lastSyncedAt: number, now = Date.now()): string {
   if (!lastSyncedAt) return "Never synced";
   const elapsedMs = Math.max(0, now - lastSyncedAt);
   const minuteMs = 60 * 1000;
@@ -114,63 +120,74 @@ function formatRelativeLastSynced(lastSyncedAt, now = Date.now()) {
   return `Last synced ${month} ${day}${year === currentYear ? "" : `, ${year}`}`;
 }
 
-function formatExactLastSynced(lastSyncedAt) {
+function formatExactLastSynced(lastSyncedAt: number): string {
   if (!lastSyncedAt) return "Never synced";
   return `Last synced ${new Date(lastSyncedAt).toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
-function formatAccountLabel(accountId) {
+function formatAccountLabel(accountId: string): string {
   const value = String(accountId || "unknown");
   if (value.startsWith("email-sha256:")) return `email hash ${shorten(value.slice("email-sha256:".length))}`;
   if (value.startsWith("id:")) return shorten(value.slice(3));
   return shorten(value);
 }
 
-function shorten(value) {
+function shorten(value: string): string {
   if (value.length <= 18) return value;
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
+function escapeHtml(value: string): string {
+  const replacements: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
-  })[char]);
+  };
+  return String(value).replace(/[&<>"']/g, (char) => replacements[char] ?? char);
 }
 
-function escapeAttribute(value) {
+function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
 }
 
-function sendRuntimeMessage(message) {
+async function sendRuntimeMessage<K extends ServiceWorkerRequest["type"]>(
+  message: Extract<ServiceWorkerRequest, { type: K }>
+): Promise<ServiceWorkerResultMap[K]> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(message, (response) => {
+      const envelope = response as ServiceResponse<ServiceWorkerResultMap[K]> | undefined;
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
         return;
       }
-      if (!response?.ok) {
-        reject(new Error(response?.error || "Extension request failed."));
+      if (!envelope?.ok) {
+        reject(new Error(envelope?.error || "Extension request failed."));
         return;
       }
-      resolve(response.data);
+      resolve(envelope.data);
     });
   });
 }
 
-function setupTheme() {
+function setupTheme(): void {
   applyPopupTheme(document, null, window);
 
   try {
     chrome.storage?.local?.get?.({ [CHATGPT_THEME_STORAGE_KEY]: null }, (values) => {
       if (chrome.runtime?.lastError) return;
-      const theme = normalizeTheme(values?.[CHATGPT_THEME_STORAGE_KEY]);
+      const storedTheme = values?.[CHATGPT_THEME_STORAGE_KEY];
+      const theme = normalizeTheme(typeof storedTheme === "string" ? storedTheme : null);
       if (theme) applyPopupTheme(document, theme, window);
     });
   } catch {
     return;
   }
+}
+
+function requiredElement<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`Missing popup element: ${selector}`);
+  return element;
 }
