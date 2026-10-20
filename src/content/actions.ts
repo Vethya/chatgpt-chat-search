@@ -1,30 +1,22 @@
-import { sendMessage } from "../shared/messaging.js";
 import { describeError } from "./runtime.js";
 import type { IconRegistry } from "./icons.js";
 import type { ContentUi } from "./ui.js";
-import type {
-  ContentScriptState,
-  ConversationRecord,
-  IndexExport,
-  SearchResult
-} from "../shared/types.js";
+import type { detectAccountIdentity } from "../shared/account.js";
+import type { mergeRecentRecords } from "../shared/importExport.js";
+import type { sendMessage } from "../shared/messaging.js";
+import type { searchConversations } from "../shared/search.js";
+import type { ContentScriptState, IndexExport } from "../shared/types.js";
+import type { formatConversationCount, formatNumber } from "../utils/format.js";
 
 export const MSG_MISSING_ACCOUNT = "Can't identify this ChatGPT account. Open the account menu, then try again.";
 
 export interface ContentActionsDeps {
-  detectAccountIdentity: (documentRef: Document) => Promise<string | null>;
-  formatConversationCount: (count: number, label?: string) => string;
-  formatNumber: (value: number) => string;
+  detectAccountIdentity: typeof detectAccountIdentity;
+  formatConversationCount: typeof formatConversationCount;
+  formatNumber: typeof formatNumber;
   icon: IconRegistry;
-  mergeRecentRecords: (
-    existingRecords: ConversationRecord[],
-    incomingRecords: ConversationRecord[]
-  ) => ConversationRecord[];
-  searchConversations: (
-    records: ConversationRecord[],
-    query: string | null | undefined,
-    limit?: number
-  ) => SearchResult[];
+  mergeRecentRecords: typeof mergeRecentRecords;
+  searchConversations: typeof searchConversations;
   sendMessage: typeof sendMessage;
   state: ContentScriptState;
   ui: ContentUi;

@@ -1,4 +1,14 @@
+import type {
+  extractConversationAnchorTitle,
+  extractConversationRecordsFromDocument,
+  getAnchorHref,
+  normalizeConversationUrl
+} from "../shared/extract.js";
+import type { compareRecordOrder } from "../shared/order.js";
+import type { RecentVisibilityResult, rememberRecentVisibleRecords } from "../shared/recentSync.js";
 import type { ConversationRecord } from "../shared/types.js";
+import type { formatConversationCount } from "../utils/format.js";
+import type { sleep } from "./runtime.js";
 
 const CONVERSATION_LIST_IDLE_TIMEOUT_MS = 25000;
 const CHAT_STALL_RECOVERY_MS = 8000;
@@ -7,28 +17,15 @@ const SCROLL_SETTLE_MS = 1100;
 const SIDEBAR_SCROLL_RATIO = 0.55;
 
 export interface SidebarScannerDeps {
-  compareRecordOrder: (left: ConversationRecord, right: ConversationRecord, fallbackOrder?: number) => number;
-  extractConversationAnchorTitle: (anchor: HTMLAnchorElement | null | undefined) => string | null;
-  extractConversationRecordsFromDocument: (
-    documentRef: ParentNode,
-    accountId: string,
-    syncedAt: number,
-    origin: string,
-    options?: { requireVisible?: boolean }
-  ) => ConversationRecord[];
-  formatConversationCount: (count: number, label?: string) => string;
-  getAnchorHref: (anchor: HTMLAnchorElement | null | undefined) => string | null;
+  compareRecordOrder: typeof compareRecordOrder;
+  extractConversationAnchorTitle: typeof extractConversationAnchorTitle;
+  extractConversationRecordsFromDocument: typeof extractConversationRecordsFromDocument;
+  formatConversationCount: typeof formatConversationCount;
+  getAnchorHref: typeof getAnchorHref;
   locationRef?: Location;
-  normalizeConversationUrl: (href: string | null | undefined, origin?: string) => string | null;
-  rememberRecentVisibleRecords: (
-    visibleRecords: ConversationRecord[],
-    foundByUrl: Map<string, ConversationRecord>,
-    knownUrls: Set<string>,
-    visitedUrls: Set<string>,
-    consecutiveKnownCount: number,
-    stopThreshold?: number
-  ) => { hitKnownLimit: boolean; consecutiveKnownCount: number };
-  sleep: (ms: number) => Promise<void>;
+  normalizeConversationUrl: typeof normalizeConversationUrl;
+  rememberRecentVisibleRecords: typeof rememberRecentVisibleRecords;
+  sleep: typeof sleep;
   updateSyncDetail: (message: string) => void;
 }
 
@@ -128,7 +125,7 @@ export function createSidebarScanner({
     syncedAt: number,
     consecutiveKnownCount: number,
     stopThreshold: number
-  ): { hitKnownLimit: boolean; consecutiveKnownCount: number } {
+  ): RecentVisibilityResult {
     const visibleRecords = extractConversationRecordsFromDocument(rootElement, accountId, syncedAt, locationRef.origin, {
       requireVisible: true
     }).map((record) => ({ ...record, syncedAt }));

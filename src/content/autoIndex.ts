@@ -1,20 +1,25 @@
-import { sendMessage } from "../shared/messaging.js";
 import type { ContentUi } from "./ui.js";
+import type { detectAccountIdentity } from "../shared/account.js";
+import type {
+  extractConversationAnchorTitle,
+  getAnchorHref,
+  isNonConversationTitle,
+  normalizeConversationUrl
+} from "../shared/extract.js";
+import type { mergeRecentRecords } from "../shared/importExport.js";
+import type { sendMessage } from "../shared/messaging.js";
 import type { ContentScriptState, ConversationRecord } from "../shared/types.js";
 
 const AUTO_INDEX_DEBOUNCE_MS = 1200;
 const AUTO_INDEX_POLL_MS = 2500;
 
 export interface AutoIndexerDeps {
-  detectAccountIdentity: (documentRef: Document) => Promise<string | null>;
-  extractConversationAnchorTitle: (anchor: HTMLAnchorElement | null | undefined) => string | null;
-  getAnchorHref: (anchor: HTMLAnchorElement | null | undefined) => string | null;
-  isNonConversationTitle: (title: string | null | undefined) => boolean;
-  mergeRecentRecords: (
-    existingRecords: ConversationRecord[],
-    incomingRecords: ConversationRecord[]
-  ) => ConversationRecord[];
-  normalizeConversationUrl: (href: string | null | undefined, origin?: string) => string | null;
+  detectAccountIdentity: typeof detectAccountIdentity;
+  extractConversationAnchorTitle: typeof extractConversationAnchorTitle;
+  getAnchorHref: typeof getAnchorHref;
+  isNonConversationTitle: typeof isNonConversationTitle;
+  mergeRecentRecords: typeof mergeRecentRecords;
+  normalizeConversationUrl: typeof normalizeConversationUrl;
   renderResults: () => void;
   sendMessage: typeof sendMessage;
   state: ContentScriptState;

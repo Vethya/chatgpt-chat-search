@@ -1,22 +1,24 @@
 import { MSG_MISSING_ACCOUNT } from "./actions.js";
-import { sendMessage } from "../shared/messaging.js";
-import { describeError, sleep } from "./runtime.js";
+import { describeError } from "./runtime.js";
+import type { sleep } from "./runtime.js";
 import type { SidebarScanner } from "./sidebarScan.js";
 import type { ContentUi } from "./ui.js";
+import type { detectAccountIdentity } from "../shared/account.js";
+import type { mergeRecentRecords } from "../shared/importExport.js";
+import type { sendMessage } from "../shared/messaging.js";
+import type { isSuspiciouslySmallSync } from "../shared/syncIntegrity.js";
 import type { ContentScriptState, ConversationRecord } from "../shared/types.js";
+import type { formatConversationCount } from "../utils/format.js";
 
 export interface SyncControllerDeps {
-  detectAccountIdentity: (documentRef: Document) => Promise<string | null>;
-  formatConversationCount: (count: number, label?: string) => string;
-  isSuspiciouslySmallSync: (previousCount: number, nextCount: number) => boolean;
-  mergeRecentRecords: (
-    existingRecords: ConversationRecord[],
-    incomingRecords: ConversationRecord[]
-  ) => ConversationRecord[];
+  detectAccountIdentity: typeof detectAccountIdentity;
+  formatConversationCount: typeof formatConversationCount;
+  isSuspiciouslySmallSync: typeof isSuspiciouslySmallSync;
+  mergeRecentRecords: typeof mergeRecentRecords;
   recentKnownStopThreshold: number;
   scanner: SidebarScanner;
   sendMessage: typeof sendMessage;
-  sleep: (ms: number) => Promise<void>;
+  sleep: typeof sleep;
   state: ContentScriptState;
   ui: ContentUi;
   renderResults: () => void;
