@@ -77,25 +77,11 @@ export function isUiMessage(value: unknown): value is UiMessage {
       (value as { type?: unknown }).type === "ui:toggleSearch");
 }
 
-const SERVICE_WORKER_REQUEST_TYPES: ReadonlySet<string> = new Set([
-  "records:list",
-  "records:replace",
-  "records:upsert",
-  "records:delete",
-  "records:reset",
-  "records:export",
-  "records:import",
-  "status:get",
-  "status:listAccounts"
-]);
-
 export function isServiceWorkerRequest(value: unknown): value is ServiceWorkerRequest {
   if (!value || typeof value !== "object") return false;
   const message = value as Record<string, unknown>;
-  const type = message.type;
-  if (typeof type !== "string" || !SERVICE_WORKER_REQUEST_TYPES.has(type)) return false;
 
-  switch (type) {
+  switch (message.type) {
     case "records:list":
     case "records:reset":
     case "records:export":
