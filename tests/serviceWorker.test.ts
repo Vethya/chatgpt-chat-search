@@ -248,9 +248,15 @@ async function loadServiceWorker(t: TestContext, options: LoadWorkerOptions = {}
       return response.data;
     },
     sendRaw(message: unknown): Promise<unknown> {
-      return new Promise((resolve) => {
-        const keepAlive = messageListeners[0]!(message, {}, resolve);
-        assert.equal(keepAlive, true);
+      return new Promise((resolve, reject) => {
+        let responded = false;
+        const keepAlive = messageListeners[0]!(message, {}, (response: unknown) => {
+          responded = true;
+          resolve(response);
+        });
+        if (!responded && keepAlive !== true) {
+          reject(new Error("Listener must return true when it responds asynchronously."));
+        }
       });
     },
     async runCommand(command) {
