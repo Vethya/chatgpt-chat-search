@@ -10,14 +10,14 @@ fi
 
 version="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
 date_stamp="$(date +%F)"
-dist_dir="dist"
+release_dir="release"
 zip_name="chatgpt-conversation-search-${date_stamp}-v${version}.zip"
-zip_path="${dist_dir}/${zip_name}"
+zip_path="${release_dir}/${zip_name}"
 
 pnpm test
 pnpm run check
 
-mkdir -p "$dist_dir"
+mkdir -p "$release_dir"
 rm -f "$zip_path"
 
 COPYFILE_DISABLE=1 zip -qr "$zip_path" \

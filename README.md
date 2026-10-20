@@ -62,8 +62,8 @@ Create a shareable extension ZIP:
 pnpm run package
 ```
 
-The ZIP is written to `dist/` with a dated filename, for example:
+The ZIP is written to `release/` with a dated filename, for example:
 
 ```text
-dist/chatgpt-conversation-search-2026-06-20-v0.1.0.zip
+release/chatgpt-conversation-search-2026-06-20-v0.1.0.zip
 ```
