@@ -181,6 +181,12 @@ test("lists grouped account statuses", async (t) => {
   ]);
 });
 
+test("returns an empty status when no account is known", async (t) => {
+  const worker = await loadServiceWorker(t);
+
+  assert.deepEqual(await worker.send({ type: "status:get" }), { count: 0 });
+});
+
 test("returns structured errors for invalid messages", async (t) => {
   const worker = await loadServiceWorker(t);
 

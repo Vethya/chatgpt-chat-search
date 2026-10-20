@@ -52,7 +52,7 @@ export type ServiceWorkerRequest =
   | { type: "records:reset"; accountId: string }
   | { type: "records:export"; accountId: string }
   | { type: "records:import"; exportData: IndexExport | string }
-  | { type: "status:get"; accountId: string }
+  | { type: "status:get"; accountId?: string }
   | { type: "status:listAccounts" };
 
 export interface ServiceWorkerResultMap {
@@ -99,8 +99,9 @@ export function isServiceWorkerRequest(value: unknown): value is ServiceWorkerRe
     case "records:list":
     case "records:reset":
     case "records:export":
-    case "status:get":
       return typeof message.accountId === "string";
+    case "status:get":
+      return message.accountId === undefined || typeof message.accountId === "string";
     case "records:replace":
     case "records:upsert":
       return typeof message.accountId === "string" && Array.isArray(message.records);

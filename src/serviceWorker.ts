@@ -178,7 +178,7 @@ async function importRecords(exportData: IndexExport | string): Promise<{ import
   return { imported };
 }
 
-async function getStatus(accountId: string): Promise<{ count: number; lastSyncedAt?: number }> {
+async function getStatus(accountId: string | undefined): Promise<{ count: number; lastSyncedAt?: number }> {
   if (!accountId) return { count: 0 };
   const records = await listRecords(accountId);
   return {
