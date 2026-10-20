@@ -1,4 +1,3 @@
-(async () => {
-  const { startContentScript } = await import("./content/bootstrap.js");
-  await startContentScript();
-})();
+import { startContentScript } from "./content/bootstrap.js";
+
+void startContentScript();
