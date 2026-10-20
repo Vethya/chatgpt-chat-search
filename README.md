@@ -39,30 +39,31 @@ The extension stores its index in your browser. It does not send your conversati
 ## Load From Source
 
 1. Clone this repository.
-2. Open `chrome://extensions`.
-3. Enable Developer mode.
-4. Choose "Load unpacked".
-5. Select this repository folder.
-6. Open `https://chatgpt.com/`.
-7. Click the extension's Search button or press `Cmd+Shift+.` / `Ctrl+Shift+.`, then run Sync.
+2. Run `pnpm install` and `pnpm run build` to compile the extension into `dist/`.
+3. Open `chrome://extensions`.
+4. Enable Developer mode.
+5. Choose "Load unpacked".
+6. Select this repository folder.
+7. Open `https://chatgpt.com/`.
+8. Click the extension's Search button or press `Cmd+Shift+.` / `Ctrl+Shift+.`, then run Sync.
 
 ## Development
 
-Run the test suite and syntax checks:
+Build the extension, run the test suite, and typecheck:
 
 ```sh
-npm test
-npm run check
+pnpm test
+pnpm run check
 ```
 
 Create a shareable extension ZIP:
 
 ```sh
-npm run package
+pnpm run package
 ```
 
-The ZIP is written to `dist/` with a dated filename, for example:
+The ZIP is written to `release/` with a dated filename, for example:
 
 ```text
-dist/chatgpt-conversation-search-2026-06-20-v0.1.0.zip
+release/chatgpt-conversation-search-2026-06-20-v0.1.0.zip
 ```

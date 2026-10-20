@@ -1,0 +1,260 @@
+import {
+  createIndexExport,
+  mergeRecentRecords,
+  mergeRecordsByUrl,
+  parseIndexExport,
+  sanitizeRecord
+} from "./shared/importExport.js";
+import { compareRecordOrder } from "./shared/order.js";
+import { isServiceWorkerRequest } from "./shared/types.js";
+import type {
+  AccountStatus,
+  ConversationRecord,
+  IndexExport,
+  ServiceWorkerRequest,
+  ServiceWorkerResultMap
+} from "./shared/types.js";
+
+const DB_NAME = "chatgpt-conversation-search";
+const DB_VERSION = 1;
+const STORE = "conversations";
+
+type ServiceWorkerHandlers = {
+  [K in ServiceWorkerRequest["type"]]: (
+    message: Extract<ServiceWorkerRequest, { type: K }>
+  ) => Promise<ServiceWorkerResultMap[K]>;
+};
+
+const MESSAGE_HANDLERS = {
+  "records:list": (message) => listRecords(message.accountId),
+  "records:replace": (message) => replaceAccountRecords(message.accountId, message.records),
+  "records:upsert": (message) => upsertAccountRecords(message.accountId, message.records),
+  "records:delete": (message) => deleteAccountRecord(message.accountId, message.url),
+  "records:reset": (message) => resetAccountRecords(message.accountId),
+  "records:export": (message) => exportAccountRecords(message.accountId),
+  "records:import": (message) => importRecords(message.exportData),
+  "status:get": (message) => getStatus(message.accountId),
+  "status:listAccounts": () => listAccountStatuses()
+} satisfies ServiceWorkerHandlers;
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isServiceWorkerRequest(message)) {
+    const type = message && typeof message === "object" && "type" in message
+      ? String(message.type)
+      : "undefined";
+    sendResponse({ ok: false, error: `Invalid message: ${type}` });
+    return;
+  }
+  handleMessage(message)
+    .then((data) => sendResponse({ ok: true, data }))
+    .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+  return true;
+});
+
+chrome.commands?.onCommand?.addListener(async (command) => {
+  if (command !== "open-search") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id && tab.url?.startsWith("https://chatgpt.com/")) {
+    await chrome.tabs.sendMessage(tab.id, { type: "ui:toggleSearch" }).catch(() => {});
+  }
+});
+
+function handleMessage(
+  message: ServiceWorkerRequest
+): Promise<ServiceWorkerResultMap[ServiceWorkerRequest["type"]]> {
+  return MESSAGE_HANDLERS[message.type](message as never);
+}
+
+async function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const store = db.createObjectStore(STORE, { keyPath: ["accountId", "url"] });
+        store.createIndex("accountId", "accountId", { unique: false });
+        store.createIndex("syncedAt", "syncedAt", { unique: false });
+      }
+    };
+  });
+}
+
+async function listRecords(accountId: string): Promise<ConversationRecord[]> {
+  requireAccountId(accountId);
+  const db = await openDb();
+  return runTransaction<ConversationRecord[]>(db, "readonly", (store, resolve, reject) => {
+    const index = store.index("accountId");
+    const request = index.getAll(accountId);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result.sort(compareRecordOrder));
+  });
+}
+
+async function replaceAccountRecords(
+  accountId: string,
+  records: ConversationRecord[]
+): Promise<{ count: number }> {
+  requireAccountId(accountId);
+  const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
+  const db = await openDb();
+  await runTransaction<void>(db, "readwrite", (store, _resolve, reject) => {
+    const index = store.index("accountId");
+    const request = index.openKeyCursor(IDBKeyRange.only(accountId));
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        store.delete(cursor.primaryKey);
+        cursor.continue();
+        return;
+      }
+
+      for (const record of cleanRecords) store.put(record);
+    };
+  });
+  return { count: cleanRecords.length };
+}
+
+async function upsertAccountRecords(
+  accountId: string,
+  records: ConversationRecord[]
+): Promise<{ count: number; upserted: number }> {
+  requireAccountId(accountId);
+  const cleanRecords = records.map((record) => sanitizeRecord({ ...record, accountId }));
+  if (cleanRecords.length === 0) return { count: (await listRecords(accountId)).length, upserted: 0 };
+
+  const existing = await listRecords(accountId);
+  const merged = mergeRecentRecords(existing, cleanRecords);
+  await replaceAccountRecords(accountId, merged);
+  return { count: merged.length, upserted: cleanRecords.length };
+}
+
+async function deleteAccountRecord(
+  accountId: string,
+  url: string
+): Promise<{ count: number; deleted: boolean }> {
+  requireAccountId(accountId);
+  if (!url) throw new Error("Missing conversation URL.");
+
+  const existing = await listRecords(accountId);
+  const remaining = existing
+    .filter((record) => record.url !== url)
+    .map((record, order) => ({ ...record, order }));
+
+  if (remaining.length === existing.length) return { count: existing.length, deleted: false };
+
+  await replaceAccountRecords(accountId, remaining);
+  return { count: remaining.length, deleted: true };
+}
+
+async function resetAccountRecords(accountId: string): Promise<{ count: number }> {
+  requireAccountId(accountId);
+  const db = await openDb();
+  await deleteAccountRecords(db, accountId);
+  return { count: 0 };
+}
+
+async function exportAccountRecords(accountId: string): Promise<IndexExport> {
+  const records = await listRecords(accountId);
+  return createIndexExport(accountId, records);
+}
+
+async function importRecords(exportData: IndexExport | string): Promise<{ imported: number }> {
+  const parsed = parseIndexExport(exportData);
+  const db = await openDb();
+  const accountIds = [...new Set(parsed.records.map((record) => record.accountId))];
+  let imported = 0;
+
+  for (const accountId of accountIds) {
+    const existing = await listRecords(accountId);
+    const incoming = parsed.records.filter((record) => record.accountId === accountId);
+    const merged = mergeRecordsByUrl(existing, incoming);
+    await replaceAccountRecords(accountId, merged);
+    imported += incoming.length;
+  }
+
+  return { imported };
+}
+
+async function getStatus(accountId: string | undefined): Promise<{ count: number; lastSyncedAt?: number }> {
+  if (!accountId) return { count: 0 };
+  const records = await listRecords(accountId);
+  return {
+    count: records.length,
+    lastSyncedAt: records.reduce((latest, record) => Math.max(latest, record.syncedAt || 0), 0)
+  };
+}
+
+async function listAccountStatuses(): Promise<AccountStatus[]> {
+  const db = await openDb();
+  const records = await runTransaction<ConversationRecord[]>(db, "readonly", (store, resolve, reject) => {
+    const request = store.getAll();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+  const byAccountId = new Map<string, AccountStatus>();
+
+  for (const record of records) {
+    const status = byAccountId.get(record.accountId) || {
+      accountId: record.accountId,
+      count: 0,
+      lastSyncedAt: 0
+    };
+    status.count += 1;
+    status.lastSyncedAt = Math.max(status.lastSyncedAt, record.syncedAt || 0);
+    byAccountId.set(record.accountId, status);
+  }
+
+  return [...byAccountId.values()].sort((left, right) =>
+    right.lastSyncedAt - left.lastSyncedAt || left.accountId.localeCompare(right.accountId)
+  );
+}
+
+async function deleteAccountRecords(db: IDBDatabase, accountId: string): Promise<void> {
+  await runTransaction<void>(db, "readwrite", (store, _resolve, reject) => {
+    const index = store.index("accountId");
+    const request = index.openKeyCursor(IDBKeyRange.only(accountId));
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      store.delete(cursor.primaryKey);
+      cursor.continue();
+    };
+  });
+}
+
+function runTransaction<T>(
+  db: IDBDatabase,
+  mode: IDBTransactionMode,
+  operation: (
+    store: IDBObjectStore,
+    resolve: (value: T) => void,
+    reject: (reason?: unknown) => void
+  ) => void
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const transaction = db.transaction(STORE, mode);
+    const store = transaction.objectStore(STORE);
+    let settled = false;
+    transaction.oncomplete = () => {
+      if (!settled) resolve(undefined as T);
+    };
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+    operation(
+      store,
+      (value) => {
+        settled = true;
+        resolve(value);
+      },
+      reject
+    );
+  });
+}
+
+function requireAccountId(accountId: string): void {
+  if (!accountId) throw new Error("Missing account identity.");
+}

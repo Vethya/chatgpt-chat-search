@@ -1,0 +1,38 @@
+import type { ConversationRecord } from "./types.js";
+
+export const RECENT_KNOWN_STOP_THRESHOLD = 20;
+
+export interface RecentVisibilityResult {
+  hitKnownLimit: boolean;
+  consecutiveKnownCount: number;
+}
+
+export function rememberRecentVisibleRecords(
+  visibleRecords: ConversationRecord[],
+  foundByUrl: Map<string, ConversationRecord>,
+  knownUrls: Set<string>,
+  visitedUrls: Set<string>,
+  consecutiveKnownCount: number,
+  stopThreshold = RECENT_KNOWN_STOP_THRESHOLD
+): RecentVisibilityResult {
+  let nextConsecutiveKnownCount = consecutiveKnownCount;
+
+  for (const record of visibleRecords) {
+    if (visitedUrls.has(record.url)) continue;
+    visitedUrls.add(record.url);
+
+    if (knownUrls.has(record.url)) {
+      nextConsecutiveKnownCount += 1;
+      if (nextConsecutiveKnownCount >= stopThreshold) {
+        return { hitKnownLimit: true, consecutiveKnownCount: nextConsecutiveKnownCount };
+      }
+      continue;
+    }
+
+    nextConsecutiveKnownCount = 0;
+    const existing = foundByUrl.get(record.url);
+    foundByUrl.set(record.url, existing ? { ...existing, ...record, order: existing.order } : { ...record, order: foundByUrl.size });
+  }
+
+  return { hitKnownLimit: false, consecutiveKnownCount: nextConsecutiveKnownCount };
+}
