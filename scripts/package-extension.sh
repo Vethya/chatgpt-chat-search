@@ -24,7 +24,7 @@ COPYFILE_DISABLE=1 zip -qr "$zip_path" \
   manifest.json \
   dist \
   README.md \
-  -x "*.DS_Store"
+  -x "*.DS_Store" "*.map"
 
 echo "Created shareable extension package:"
 echo "$zip_path"
