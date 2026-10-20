@@ -39,7 +39,7 @@ The extension stores its index in your browser. It does not send your conversati
 ## Load From Source
 
 1. Clone this repository.
-2. Run `npm install` and `npm run build` to compile the extension into `dist/`.
+2. Run `pnpm install` and `pnpm run build` to compile the extension into `dist/`.
 3. Open `chrome://extensions`.
 4. Enable Developer mode.
 5. Choose "Load unpacked".
@@ -52,14 +52,14 @@ The extension stores its index in your browser. It does not send your conversati
 Build the extension, run the test suite, and typecheck:
 
 ```sh
-npm test
-npm run check
+pnpm test
+pnpm run check
 ```
 
 Create a shareable extension ZIP:
 
 ```sh
-npm run package
+pnpm run package
 ```
 
 The ZIP is written to `dist/` with a dated filename, for example:

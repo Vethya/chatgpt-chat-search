@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Local Chromium extension for fast ChatGPT conversation title search.",
+  "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "pretest": "npm run build",
+    "pretest": "pnpm run build",
     "test": "node --import tsx --test tests/*.test.ts",
     "check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "build": "node scripts/build-extension.mjs",
@@ -17,5 +18,10 @@
     "esbuild": "^0.28.1",
     "tsx": "^4.23.11",
     "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

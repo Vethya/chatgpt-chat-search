@@ -14,8 +14,8 @@ dist_dir="dist"
 zip_name="chatgpt-conversation-search-${date_stamp}-v${version}.zip"
 zip_path="${dist_dir}/${zip_name}"
 
-npm test
-npm run check
+pnpm test
+pnpm run check
 
 mkdir -p "$dist_dir"
 rm -f "$zip_path"
