@@ -7,6 +7,7 @@ import {
   normalizeConversationUrl
 } from "../shared/extract.js";
 import { mergeRecentRecords } from "../shared/importExport.js";
+import { sendMessage } from "../shared/messaging.js";
 import { compareRecordOrder } from "../shared/order.js";
 import { RECENT_KNOWN_STOP_THRESHOLD, rememberRecentVisibleRecords } from "../shared/recentSync.js";
 import { searchConversations } from "../shared/search.js";
@@ -18,7 +19,7 @@ import { formatConversationCount, formatNumber, getShortcutLabel } from "../util
 import { createContentActions } from "./actions.js";
 import { createAutoIndexer } from "./autoIndex.js";
 import { createIconRegistry } from "./icons.js";
-import { sendMessage, sleep } from "./runtime.js";
+import { sleep } from "./runtime.js";
 import { createSidebarScanner } from "./sidebarScan.js";
 import { createSyncController } from "./sync.js";
 import { createContentUi } from "./ui.js";

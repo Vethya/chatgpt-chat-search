@@ -1,4 +1,5 @@
-import { describeError, sendMessage } from "./runtime.js";
+import { sendMessage } from "../shared/messaging.js";
+import { describeError } from "./runtime.js";
 import type { IconRegistry } from "./icons.js";
 import type { ContentUi } from "./ui.js";
 import type {

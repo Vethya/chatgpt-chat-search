@@ -1,5 +1,6 @@
 import { MSG_MISSING_ACCOUNT } from "./actions.js";
-import { describeError, sendMessage, sleep } from "./runtime.js";
+import { sendMessage } from "../shared/messaging.js";
+import { describeError, sleep } from "./runtime.js";
 import type { SidebarScanner } from "./sidebarScan.js";
 import type { ContentUi } from "./ui.js";
 import type { ContentScriptState, ConversationRecord } from "../shared/types.js";

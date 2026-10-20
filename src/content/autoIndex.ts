@@ -1,4 +1,4 @@
-import { sendMessage } from "./runtime.js";
+import { sendMessage } from "../shared/messaging.js";
 import type { ContentUi } from "./ui.js";
 import type { ContentScriptState, ConversationRecord } from "../shared/types.js";
 

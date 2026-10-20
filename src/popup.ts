@@ -1,11 +1,7 @@
 import { applyPopupTheme, CHATGPT_THEME_STORAGE_KEY, normalizeTheme } from "./shared/theme.js";
 import { formatConversationLabel, formatNumber, getShortcutLabel } from "./utils/format.js";
-import type {
-  AccountStatus,
-  ServiceResponse,
-  ServiceWorkerRequest,
-  ServiceWorkerResultMap
-} from "./shared/types.js";
+import { sendMessage } from "./shared/messaging.js";
+import type { AccountStatus } from "./shared/types.js";
 
 const statusElement = requiredElement<HTMLElement>("#status");
 const openSearchButton = requiredElement<HTMLButtonElement>("#open-search");
@@ -37,7 +33,7 @@ async function openSearch(): Promise<void> {
 
 async function refreshStatus(): Promise<void> {
   try {
-    const statuses = await sendRuntimeMessage({ type: "status:listAccounts" });
+    const statuses = await sendMessage({ type: "status:listAccounts" });
     renderAccountStatuses(statuses);
   } catch {
     renderMessage("Open ChatGPT to search or sync conversations.");
@@ -150,25 +146,6 @@ function escapeHtml(value: string): string {
 
 function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
-}
-
-async function sendRuntimeMessage<K extends ServiceWorkerRequest["type"]>(
-  message: Extract<ServiceWorkerRequest, { type: K }>
-): Promise<ServiceWorkerResultMap[K]> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
-      const envelope = response as ServiceResponse<ServiceWorkerResultMap[K]> | undefined;
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      if (!envelope?.ok) {
-        reject(new Error(envelope?.error || "Extension request failed."));
-        return;
-      }
-      resolve(envelope.data);
-    });
-  });
 }
 
 function setupTheme(): void {
